@@ -1,23 +1,71 @@
 import { useState } from 'react'
 import styles from './LoginPage.module.css'
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
+  const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const esRegistro = modo === 'registro'
+  const esRecuperar = modo === 'recuperar'
+
+  const cambiarModo = (nuevoModo) => {
+    setModo(nuevoModo)
+    setError('')
+    setSuccess('')
+    setPassword('')
+    setConfirm('')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
+
+    if (esRegistro || esRecuperar) {
+      if (password.length < 6) {
+        setError('La contraseña debe tener al menos 6 caracteres')
+        return
+      }
+      if (password !== confirm) {
+        setError('Las contraseñas no coinciden')
+        return
+      }
+    }
+
     setLoading(true)
-    await new Promise(r => setTimeout(r, 400))
-    const result = onLogin(email, password)
+
+    if (esRecuperar) {
+      const result = await onResetPassword(email, password)
+      setLoading(false)
+      if (!result.ok) {
+        setError(result.error)
+      } else {
+        setSuccess('Contraseña actualizada. Ya podés iniciar sesión.')
+        setPassword('')
+        setConfirm('')
+      }
+      return
+    }
+
+    const result = await (esRegistro ? onRegister(email, password) : onLogin(email, password))
     if (!result.ok) {
       setError(result.error)
       setLoading(false)
     }
   }
+
+  const titulo = esRegistro ? 'Crear cuenta'
+    : esRecuperar ? 'Recuperar contraseña'
+    : 'Bienvenida'
+
+  const subtitulo = esRegistro ? 'Registrate para empezar tu biblioteca'
+    : esRecuperar ? 'Ingresá tu email y una contraseña nueva'
+    : 'Iniciá sesión para ver tu biblioteca'
 
   return (
     <div className={styles.page}>
@@ -32,15 +80,15 @@ export default function LoginPage({ onLogin }) {
         </div>
         <div className={styles.leftContent}>
           <h1 className={styles.brand}>Librook</h1>
-          <p className={styles.tagline}>Tu biblioteca personal, siempre contigo.</p>
+          <p className={styles.tagline}>Tu biblioteca personal.</p>
         </div>
       </div>
 
       <div className={styles.right}>
-        <form className={styles.form} onSubmit={handleSubmit}>
+        <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <div className={styles.formHeader}>
-            <h2 className={styles.welcome}>Bienvenida</h2>
-            <p className={styles.subtitle}>Iniciá sesión para ver tu biblioteca</p>
+            <h2 className={styles.welcome}>{titulo}</h2>
+            <p className={styles.subtitle}>{subtitulo}</p>
           </div>
 
           <div className={styles.fields}>
@@ -52,35 +100,114 @@ export default function LoginPage({ onLogin }) {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="lector@librook.com"
+                placeholder="vos@ejemplo.com"
                 required
                 autoFocus
+                autoComplete="email"
               />
             </div>
 
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="password">Contraseña</label>
-              <input
-                id="password"
-                className={styles.input}
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            {!esRecuperar && (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="password">Contraseña</label>
+                <input
+                  id="password"
+                  className={styles.input}
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete={esRegistro ? 'new-password' : 'current-password'}
+                />
+              </div>
+            )}
+
+            {(esRegistro || esRecuperar) && (
+              <>
+                {esRecuperar && (
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="password">Contraseña nueva</label>
+                    <input
+                      id="password"
+                      className={styles.input}
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      autoComplete="new-password"
+                    />
+                  </div>
+                )}
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="confirm">
+                    {esRecuperar ? 'Repetir contraseña nueva' : 'Repetir contraseña'}
+                  </label>
+                  <input
+                    id="confirm"
+                    className={styles.input}
+                    type="password"
+                    value={confirm}
+                    onChange={e => setConfirm(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="new-password"
+                  />
+                </div>
+              </>
+            )}
 
             {error && <p className={styles.error}>{error}</p>}
+            {success && <p className={styles.successMsg}>{success}</p>}
 
-            <button className={styles.btn} type="submit" disabled={loading}>
-              {loading ? <span className={styles.spinner} /> : 'Ingresar'}
-            </button>
+            {!success && (
+              <button className={styles.btn} type="submit" disabled={loading}>
+                {loading ? <span className={styles.spinner} />
+                  : esRegistro ? 'Crear cuenta'
+                  : esRecuperar ? 'Cambiar contraseña'
+                  : 'Ingresar'}
+              </button>
+            )}
+
+            {success && (
+              <button
+                type="button"
+                className={styles.btn}
+                onClick={() => cambiarModo('login')}
+              >
+                Ir al inicio de sesión
+              </button>
+            )}
           </div>
 
-          <p className={styles.hint}>
-            Demo: <span>lector@librook.com</span> / <span>1234</span>
-          </p>
+          <div className={styles.links}>
+            {!esRegistro && !esRecuperar && (
+              <button type="button" className={styles.toggleBtn} onClick={() => cambiarModo('recuperar')}>
+                Olvidé mi contraseña
+              </button>
+            )}
+            {esRecuperar && (
+              <button type="button" className={styles.toggleBtn} onClick={() => cambiarModo('login')}>
+                Volver al inicio de sesión
+              </button>
+            )}
+            <p className={styles.toggle}>
+              {esRegistro ? (
+                <>¿Ya tenés cuenta?{' '}
+                  <button type="button" className={styles.toggleBtn} onClick={() => cambiarModo('login')}>
+                    Iniciá sesión
+                  </button>
+                </>
+              ) : !esRecuperar ? (
+                <>¿No tenés cuenta?{' '}
+                  <button type="button" className={styles.toggleBtn} onClick={() => cambiarModo('registro')}>
+                    Registrate
+                  </button>
+                </>
+              ) : null}
+            </p>
+          </div>
         </form>
       </div>
     </div>

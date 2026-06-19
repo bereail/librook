@@ -1,41 +1,22 @@
-import { useState } from 'react'
 import { useAuth } from './hooks/useAuth'
-import { useBooks } from './hooks/useBooks'
+import { useTheme } from './hooks/useTheme'
 import LoginPage from './pages/LoginPage'
-import LibraryPage from './pages/LibraryPage'
-import BookModal from './components/BookModal'
+import LibraryMain from './LibraryMain'
 
 export default function App() {
-  const { user, login, logout } = useAuth()
-  const { books, addBook, updateBook, deleteBook } = useBooks()
-  const [modal, setModal] = useState(null) // null | { mode: 'add' | 'edit', book?: {} }
+  const { user, login, register, resetPassword, logout } = useAuth()
+  const { dark, toggle: toggleTheme } = useTheme()
 
   if (!user) {
-    return <LoginPage onLogin={login} />
+    return <LoginPage onLogin={login} onRegister={register} onResetPassword={resetPassword} />
   }
 
   return (
-    <LibraryPage
-      books={books}
+    <LibraryMain
       user={user}
       onLogout={logout}
-      onAddBook={() => setModal({ mode: 'add' })}
-      onEditBook={(book) => setModal({ mode: 'edit', book })}
-      onDeleteBook={deleteBook}
-      modal={
-        modal && (
-          <BookModal
-            mode={modal.mode}
-            book={modal.book}
-            onSave={(data) => {
-              if (modal.mode === 'add') addBook(data)
-              else updateBook(modal.book.id, data)
-              setModal(null)
-            }}
-            onClose={() => setModal(null)}
-          />
-        )
-      }
+      dark={dark}
+      onToggleTheme={toggleTheme}
     />
   )
 }

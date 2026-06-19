@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import StarRating from './StarRating'
+import ISBNScanner from './ISBNScanner'
+import { useBookSearch } from '../hooks/useBookSearch'
 import styles from './BookModal.module.css'
 
 const EMPTY = {
-  title: '', author: '', publisher: '',
+  title: '', author: '', publisher: '', genre: '',
   startDate: '', endDate: '', notes: '',
   score: 0, cover: '', color: '',
+  totalPages: '', currentPage: '',
 }
 
 const COLORS = [
@@ -17,17 +20,126 @@ const COLORS = [
 export default function BookModal({ mode, book, onSave, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? { ...EMPTY, ...book } : EMPTY)
   const [errors, setErrors] = useState({})
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [isbn, setIsbn] = useState('')
+  const [isbnLoading, setIsbnLoading] = useState(false)
+  const [isbnError, setIsbnError] = useState('')
+
   const overlayRef = useRef(null)
+  const suggestionsRef = useRef(null)
+  const titleRef = useRef(null)
+  const fileRef = useRef(null)
+
+  const { suggestions, loading, search, searchByISBN, clear } = useBookSearch()
 
   useEffect(() => {
-    const handler = (e) => e.key === 'Escape' && onClose()
+    const handler = (e) => e.key === 'Escape' && !scannerOpen && onClose()
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [onClose, scannerOpen])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(e.target) &&
+        !titleRef.current?.contains(e.target)
+      ) setShowSuggestions(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const set = (key, val) => {
     setForm(f => ({ ...f, [key]: val }))
     if (errors[key]) setErrors(e => ({ ...e, [key]: '' }))
+  }
+
+  const fillFromResult = (result) => {
+    setForm(f => ({
+      ...f,
+      title: result.title || f.title,
+      author: result.author || f.author,
+      publisher: result.publisher || f.publisher,
+      cover: result.coverLarge || result.cover || f.cover,
+    }))
+    setErrors({})
+  }
+
+  // --- Título con autocompletado ---
+  const handleTitleChange = (e) => {
+    const val = e.target.value
+    set('title', val)
+    search(val)
+    setShowSuggestions(true)
+  }
+
+  const handleSelectSuggestion = (s) => {
+    fillFromResult(s)
+    setShowSuggestions(false)
+    clear()
+  }
+
+  // --- Upload de imagen ---
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const img = new Image()
+      img.onload = () => {
+        const MAX = 500
+        const ratio = Math.min(MAX / img.width, (MAX * 1.5) / img.height, 1)
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        set('cover', canvas.toDataURL('image/jpeg', 0.82))
+      }
+      img.src = ev.target.result
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  // --- Búsqueda por ISBN ---
+  const handleIsbnSearch = async (e) => {
+    e?.preventDefault()
+    const q = isbn.trim()
+    if (!q) return
+    setIsbnLoading(true)
+    setIsbnError('')
+    try {
+      const result = await searchByISBN(q)
+      if (!result) {
+        setIsbnError('ISBN no encontrado en Open Library')
+        return
+      }
+      fillFromResult(result)
+      setIsbn('')
+    } catch {
+      setIsbnError('Error al buscar. Intentá de nuevo.')
+    } finally {
+      setIsbnLoading(false)
+    }
+  }
+
+  // --- Escaneo de ISBN ---
+  const handleScan = async (code) => {
+    setScannerOpen(false)
+    setIsbn(code)
+    setIsbnLoading(true)
+    setIsbnError('')
+    try {
+      const result = await searchByISBN(code)
+      if (!result) setIsbnError(`ISBN ${code} no encontrado`)
+      else fillFromResult(result)
+    } catch {
+      setIsbnError('Error al buscar el ISBN escaneado.')
+    } finally {
+      setIsbnLoading(false)
+    }
   }
 
   const validate = () => {
@@ -44,162 +156,323 @@ export default function BookModal({ mode, book, onSave, onClose }) {
     onSave(form)
   }
 
-  const handleOverlayClick = (e) => {
-    if (e.target === overlayRef.current) onClose()
-  }
+  const hasSuggestions = showSuggestions && (loading || suggestions.length > 0)
 
   return (
-    <div className={styles.overlay} ref={overlayRef} onClick={handleOverlayClick}>
-      <div className={styles.modal}>
-        <div className={styles.modalHeader}>
-          <h2 className={styles.modalTitle}>
-            {mode === 'add' ? 'Agregar libro' : 'Editar libro'}
-          </h2>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
-
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.scroll}>
-            <div className={styles.section}>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="title">Título *</label>
-                <input
-                  id="title"
-                  className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
-                  value={form.title}
-                  onChange={e => set('title', e.target.value)}
-                  placeholder="Nombre del libro"
-                  autoFocus
-                />
-                {errors.title && <span className={styles.error}>{errors.title}</span>}
-              </div>
-
-              <div className={styles.row2}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="author">Autor *</label>
-                  <input
-                    id="author"
-                    className={`${styles.input} ${errors.author ? styles.inputError : ''}`}
-                    value={form.author}
-                    onChange={e => set('author', e.target.value)}
-                    placeholder="Nombre del autor"
-                  />
-                  {errors.author && <span className={styles.error}>{errors.author}</span>}
-                </div>
-
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="publisher">Editorial</label>
-                  <input
-                    id="publisher"
-                    className={styles.input}
-                    value={form.publisher}
-                    onChange={e => set('publisher', e.target.value)}
-                    placeholder="Ej: Alfaguara"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.divider} />
-
-            <div className={styles.section}>
-              <div className={styles.row2}>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="startDate">Inicio de lectura</label>
-                  <input
-                    id="startDate"
-                    className={styles.input}
-                    type="date"
-                    value={form.startDate}
-                    onChange={e => set('startDate', e.target.value)}
-                  />
-                </div>
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="endDate">Fin de lectura</label>
-                  <input
-                    id="endDate"
-                    className={styles.input}
-                    type="date"
-                    value={form.endDate}
-                    onChange={e => set('endDate', e.target.value)}
-                    min={form.startDate || undefined}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.divider} />
-
-            <div className={styles.section}>
-              <div className={styles.field}>
-                <label className={styles.label}>Puntaje</label>
-                <StarRating value={form.score} onChange={v => set('score', v)} size={22} />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="notes">Anotaciones</label>
-                <textarea
-                  id="notes"
-                  className={styles.textarea}
-                  value={form.notes}
-                  onChange={e => set('notes', e.target.value)}
-                  placeholder="Observaciones, reflexiones, citas..."
-                  rows={3}
-                />
-              </div>
-            </div>
-
-            <div className={styles.divider} />
-
-            <div className={styles.section}>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="cover">URL de la tapa</label>
-                <input
-                  id="cover"
-                  className={styles.input}
-                  value={form.cover}
-                  onChange={e => set('cover', e.target.value)}
-                  placeholder="https://..."
-                  type="url"
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>Color de la tapa</label>
-                <div className={styles.colorPicker}>
-                  {COLORS.map(c => (
-                    <button
-                      key={c}
-                      type="button"
-                      className={`${styles.colorDot} ${form.color === c ? styles.colorSelected : ''}`}
-                      style={{ backgroundColor: c }}
-                      onClick={() => set('color', c)}
-                      aria-label={`Color ${c}`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {form.cover && (
-                <div className={styles.coverPreview}>
-                  <img src={form.cover} alt="Preview" onError={e => e.target.style.display = 'none'} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.footer}>
-            <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancelar</button>
-            <button type="submit" className={styles.saveBtn}>
-              {mode === 'add' ? 'Agregar libro' : 'Guardar cambios'}
+    <>
+      <div className={styles.overlay} ref={overlayRef} onClick={e => e.target === overlayRef.current && onClose()}>
+        <div className={styles.modal}>
+          <div className={styles.modalHeader}>
+            <h2 className={styles.modalTitle}>
+              {mode === 'add' ? 'Agregar libro' : 'Editar libro'}
+            </h2>
+            <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
             </button>
           </div>
-        </form>
+
+          <form className={styles.form} onSubmit={handleSubmit}>
+            <div className={styles.scroll}>
+
+              {/* Título */}
+              <div className={styles.section}>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="title">Título *</label>
+                  <div className={styles.searchField} ref={titleRef}>
+                    <input
+                      id="title"
+                      className={`${styles.input} ${errors.title ? styles.inputError : ''}`}
+                      value={form.title}
+                      onChange={handleTitleChange}
+                      onFocus={() => form.title.length >= 2 && setShowSuggestions(true)}
+                      placeholder="Escribí el título para buscar..."
+                      autoFocus
+                      autoComplete="off"
+                    />
+                    {loading && (
+                      <span className={styles.searchSpinner} aria-hidden="true">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"
+                            strokeDasharray="31.4" strokeDashoffset="10"/>
+                        </svg>
+                      </span>
+                    )}
+                    {hasSuggestions && (
+                      <ul className={styles.suggestions} ref={suggestionsRef} role="listbox">
+                        {loading && suggestions.length === 0 && (
+                          <li className={styles.suggestionLoading}>Buscando en Open Library...</li>
+                        )}
+                        {suggestions.map(s => (
+                          <li
+                            key={s.key}
+                            className={styles.suggestionItem}
+                            role="option"
+                            onMouseDown={() => handleSelectSuggestion(s)}
+                          >
+                            <div className={styles.suggestionCover}>
+                              {s.cover
+                                ? <img src={s.cover} alt="" onError={e => e.target.style.display = 'none'} />
+                                : <span className={styles.suggestionNoCover}>📖</span>
+                              }
+                            </div>
+                            <div className={styles.suggestionInfo}>
+                              <span className={styles.suggestionTitle}>{s.title}</span>
+                              {s.author && (
+                                <span className={styles.suggestionAuthor}>
+                                  {s.author}{s.year ? ` · ${s.year}` : ''}
+                                </span>
+                              )}
+                              {s.publisher && (
+                                <span className={styles.suggestionPublisher}>{s.publisher}</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {errors.title && <span className={styles.error}>{errors.title}</span>}
+                </div>
+
+                <div className={styles.row2}>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="author">Autor *</label>
+                    <input
+                      id="author"
+                      className={`${styles.input} ${errors.author ? styles.inputError : ''}`}
+                      value={form.author}
+                      onChange={e => set('author', e.target.value)}
+                      placeholder="Nombre del autor"
+                    />
+                    {errors.author && <span className={styles.error}>{errors.author}</span>}
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="publisher">Editorial</label>
+                    <input
+                      id="publisher"
+                      className={styles.input}
+                      value={form.publisher}
+                      onChange={e => set('publisher', e.target.value)}
+                      placeholder="Ej: Alfaguara"
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="genre">Género</label>
+                  <input
+                    id="genre"
+                    className={styles.input}
+                    value={form.genre || ''}
+                    onChange={e => set('genre', e.target.value)}
+                    placeholder="Ej: Fantasía, Terror, Ensayo..."
+                  />
+                </div>
+              </div>
+
+              <div className={styles.divider} />
+
+              {/* Fechas */}
+              <div className={styles.section}>
+                <div className={styles.row2}>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="startDate">Inicio de lectura</label>
+                    <input
+                      id="startDate"
+                      className={styles.input}
+                      type="date"
+                      value={form.startDate}
+                      onChange={e => set('startDate', e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="endDate">Fin de lectura</label>
+                    <input
+                      id="endDate"
+                      className={styles.input}
+                      type="date"
+                      value={form.endDate}
+                      onChange={e => set('endDate', e.target.value)}
+                      min={form.startDate || undefined}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.row2}>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="totalPages">Páginas totales</label>
+                    <input
+                      id="totalPages"
+                      className={styles.input}
+                      type="number"
+                      min="0"
+                      value={form.totalPages || ''}
+                      onChange={e => set('totalPages', e.target.value)}
+                      placeholder="Ej: 400"
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="currentPage">Página actual</label>
+                    <input
+                      id="currentPage"
+                      className={styles.input}
+                      type="number"
+                      min="0"
+                      max={form.totalPages || undefined}
+                      value={form.currentPage || ''}
+                      onChange={e => set('currentPage', e.target.value)}
+                      placeholder="Ej: 150"
+                    />
+                  </div>
+                </div>
+
+              </div>
+
+              <div className={styles.divider} />
+
+              {/* Puntaje y notas */}
+              <div className={styles.section}>
+                <div className={styles.field}>
+                  <label className={styles.label}>Puntaje</label>
+                  <StarRating value={form.score} onChange={v => set('score', v)} size={22} />
+                </div>
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="notes">Anotaciones</label>
+                  <textarea
+                    id="notes"
+                    className={styles.textarea}
+                    value={form.notes}
+                    onChange={e => set('notes', e.target.value)}
+                    placeholder="Observaciones, reflexiones, citas..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.divider} />
+
+              {/* Tapa */}
+              <div className={styles.section}>
+                <span className={styles.label}>Tapa</span>
+
+                <div className={styles.coverSection}>
+                  {/* Preview */}
+                  <div className={styles.coverPreviewBox}>
+                    {form.cover ? (
+                      <>
+                        <img
+                          src={form.cover}
+                          alt="Tapa"
+                          className={styles.coverImg}
+                          onError={() => set('cover', '')}
+                        />
+                        <button
+                          type="button"
+                          className={styles.removeCoverBtn}
+                          onClick={() => set('cover', '')}
+                          aria-label="Quitar tapa"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+                            <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                          </svg>
+                        </button>
+                      </>
+                    ) : (
+                      <div className={styles.coverVacio}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.3">
+                          <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botones */}
+                  <div className={styles.coverOpciones}>
+                    <label className={styles.coverOpcionBtn}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Subir foto</span>
+                      <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} hidden />
+                    </label>
+
+                    <button
+                      type="button"
+                      className={styles.coverOpcionBtn}
+                      onClick={() => setScannerOpen(true)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                      </svg>
+                      <span>Escanear ISBN</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ISBN manual */}
+                <div className={styles.isbnRow}>
+                  <input
+                    className={styles.isbnInput}
+                    value={isbn}
+                    onChange={e => { setIsbn(e.target.value); setIsbnError('') }}
+                    onKeyDown={e => e.key === 'Enter' && handleIsbnSearch(e)}
+                    placeholder="Buscar por ISBN..."
+                    maxLength={17}
+                    type="text"
+                    inputMode="numeric"
+                  />
+                  <button
+                    type="button"
+                    className={styles.isbnBtn}
+                    onClick={handleIsbnSearch}
+                    disabled={isbnLoading || !isbn.trim()}
+                  >
+                    {isbnLoading ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"
+                          strokeDasharray="31.4" strokeDashoffset="10"/>
+                      </svg>
+                    ) : 'Buscar'}
+                  </button>
+                </div>
+                {isbnError && <span className={styles.error}>{isbnError}</span>}
+
+                {/* Color */}
+                <div className={styles.field}>
+                  <label className={styles.label}>Color de fondo</label>
+                  <div className={styles.colorPicker}>
+                    {COLORS.map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={`${styles.colorDot} ${form.color === c ? styles.colorSelected : ''}`}
+                        style={{ backgroundColor: c }}
+                        onClick={() => set('color', c)}
+                        aria-label={`Color ${c}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.footer}>
+              <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancelar</button>
+              <button type="submit" className={styles.saveBtn}>
+                {mode === 'add' ? 'Agregar libro' : 'Guardar cambios'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+
+      {scannerOpen && (
+        <ISBNScanner onScan={handleScan} onClose={() => setScannerOpen(false)} />
+      )}
+    </>
   )
 }

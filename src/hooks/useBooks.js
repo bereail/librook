@@ -1,67 +1,28 @@
 import { useState, useEffect } from 'react'
 
-const STORAGE_KEY = 'librook_books'
 
-const SAMPLE_BOOKS = [
-  {
-    id: '1',
-    title: 'El nombre del viento',
-    author: 'Patrick Rothfuss',
-    publisher: 'DAW Books',
-    startDate: '2024-01-10',
-    endDate: '2024-02-03',
-    notes: 'Una obra maestra de la fantasía. La voz de Kvothe es hipnótica.',
-    score: 5,
-    cover: 'https://covers.openlibrary.org/b/id/8234869-L.jpg',
-    color: '#8B4513',
-  },
-  {
-    id: '2',
-    title: 'Cien años de soledad',
-    author: 'Gabriel García Márquez',
-    publisher: 'Sudamericana',
-    startDate: '2024-03-01',
-    endDate: '2024-04-15',
-    notes: 'Un viaje mágico por la familia Buendía. Lectura imprescindible.',
-    score: 5,
-    cover: 'https://covers.openlibrary.org/b/id/8775235-L.jpg',
-    color: '#2c5f2e',
-  },
-  {
-    id: '3',
-    title: 'El principito',
-    author: 'Antoine de Saint-Exupéry',
-    publisher: 'Gallimard',
-    startDate: '2024-05-20',
-    endDate: '2024-05-22',
-    notes: 'Simple y profundo. Cada vez que lo leo encuentro algo nuevo.',
-    score: 4,
-    cover: 'https://covers.openlibrary.org/b/id/8739161-L.jpg',
-    color: '#1a3a5c',
-  },
-]
+export function useBooks(userEmail) {
+  const storageKey = `librook_books_${userEmail}`
 
-export function useBooks() {
   const [books, setBooks] = useState(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) return JSON.parse(stored)
-      return SAMPLE_BOOKS
+      const stored = localStorage.getItem(storageKey)
+      return stored ? JSON.parse(stored) : []
     } catch {
-      return SAMPLE_BOOKS
+      return []
     }
   })
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
-  }, [books])
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(books))
+    } catch (_e) {
+      // localStorage lleno (puede ocurrir con imágenes en base64)
+    }
+  }, [books, storageKey])
 
   const addBook = (book) => {
-    const newBook = {
-      ...book,
-      id: Date.now().toString(),
-      color: book.color || randomColor(),
-    }
+    const newBook = { ...book, id: Date.now().toString(), color: book.color || randomColor() }
     setBooks(prev => [newBook, ...prev])
     return newBook
   }
@@ -74,7 +35,39 @@ export function useBooks() {
     setBooks(prev => prev.filter(b => b.id !== id))
   }
 
-  return { books, addBook, updateBook, deleteBook }
+  const exportBooks = () => {
+    const payload = JSON.stringify({ version: 1, exportDate: new Date().toISOString(), books }, null, 2)
+    const blob = new Blob([payload], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const fecha = new Date().toLocaleDateString('es-AR').replace(/\//g, '-')
+    a.download = `librook-backup-${fecha}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const importBooks = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result)
+        const imported = Array.isArray(data) ? data : (data.books || [])
+        if (!Array.isArray(imported) || imported.length === 0) {
+          reject(new Error('El archivo está vacío o tiene un formato inválido'))
+          return
+        }
+        setBooks(imported)
+        resolve(imported.length)
+      } catch {
+        reject(new Error('No se pudo leer el archivo. Verificá que sea un backup válido de Librook.'))
+      }
+    }
+    reader.onerror = () => reject(new Error('Error al leer el archivo'))
+    reader.readAsText(file)
+  })
+
+  return { books, addBook, updateBook, deleteBook, exportBooks, importBooks }
 }
 
 function randomColor() {
