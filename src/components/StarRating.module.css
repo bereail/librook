@@ -1,0 +1,33 @@
+.stars {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform var(--transition);
+  padding: 0;
+}
+
+.star:disabled {
+  cursor: default;
+}
+
+.star:not(:disabled):hover {
+  transform: scale(1.15);
+}
+
+.star svg {
+  width: 100%;
+  height: 100%;
+}
+
+.star.filled svg path {
+  fill: var(--color-gold);
+  stroke: var(--color-gold);
+}
