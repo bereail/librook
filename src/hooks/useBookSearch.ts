@@ -3,6 +3,10 @@ import { useState, useCallback, useRef } from 'react'
 const API = 'https://openlibrary.org/search.json'
 const COVERS = 'https://covers.openlibrary.org/b/id'
 const FIELDS = 'key,title,author_name,publisher,cover_i,first_publish_year,language'
+const DEBOUNCE_MS = 400
+const MAX_CACHE_SIZE = 50
+
+const searchCache = new Map()
 
 function mapDoc(doc) {
   return {
@@ -22,12 +26,19 @@ export function useBookSearch() {
   const debounceRef = useRef(null)
   const abortRef = useRef(null)
 
-  const search = useCallback((query, { lang } = {}) => {
+  const search = useCallback((query: string, { lang }: { lang?: string } = {}) => {
     clearTimeout(debounceRef.current)
     abortRef.current?.abort()
 
     if (!query || query.trim().length < 2) {
       setSuggestions([])
+      setLoading(false)
+      return
+    }
+
+    const cacheKey = `${query.trim()}|${lang || ''}`
+    if (searchCache.has(cacheKey)) {
+      setSuggestions(searchCache.get(cacheKey))
       setLoading(false)
       return
     }
@@ -39,24 +50,31 @@ export function useBookSearch() {
       abortRef.current = controller
 
       try {
-        const params = new URLSearchParams({ q: query.trim(), limit: 8, fields: FIELDS })
+        const params = new URLSearchParams({ q: query.trim(), limit: '8', fields: FIELDS })
         if (lang) params.set('lang', lang)
 
         const res = await fetch(`${API}?${params}`, { signal: controller.signal })
         if (!res.ok) throw new Error('respuesta inválida')
         const data = await res.json()
-        setSuggestions((data.docs || []).slice(0, 8).map(mapDoc))
+        const results = (data.docs || []).slice(0, 8).map(mapDoc)
+
+        if (searchCache.size >= MAX_CACHE_SIZE) {
+          searchCache.delete(searchCache.keys().next().value)
+        }
+        searchCache.set(cacheKey, results)
+
+        setSuggestions(results)
       } catch (err) {
         if (err.name !== 'AbortError') setSuggestions([])
       } finally {
         setLoading(false)
       }
-    }, 400)
+    }, DEBOUNCE_MS)
   }, [])
 
   const searchByISBN = useCallback(async (isbn) => {
     const clean = isbn.replace(/[-\s]/g, '')
-    const params = new URLSearchParams({ isbn: clean, limit: 1, fields: FIELDS })
+    const params = new URLSearchParams({ isbn: clean, limit: '1', fields: FIELDS })
     const res = await fetch(`${API}?${params}`)
     if (!res.ok) throw new Error('Sin respuesta')
     const data = await res.json()

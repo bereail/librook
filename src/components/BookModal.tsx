@@ -4,6 +4,10 @@ import ISBNScanner from './ISBNScanner'
 import { useBookSearch } from '../hooks/useBookSearch'
 import styles from './BookModal.module.css'
 
+const COVER_MAX_PX = 500
+const COVER_QUALITY = 0.82
+const MAX_FILE_MB = 5
+
 const EMPTY = {
   title: '', author: '', publisher: '', genre: '',
   startDate: '', endDate: '', notes: '',
@@ -17,9 +21,16 @@ const COLORS = [
   '#344055', '#3d4a2d',
 ]
 
+function CoverImg({ src, alt, className }) {
+  const [hasError, setHasError] = useState(false)
+  if (hasError) return null
+  return <img src={src} alt={alt} className={className} onError={() => setHasError(true)} />
+}
+
 export default function BookModal({ mode, book, onSave, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? { ...EMPTY, ...book } : EMPTY)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [coverError, setCoverError] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
   const [isbn, setIsbn] = useState('')
@@ -67,7 +78,6 @@ export default function BookModal({ mode, book, onSave, onClose }) {
     setErrors({})
   }
 
-  // --- Título con autocompletado ---
   const handleTitleChange = (e) => {
     const val = e.target.value
     set('title', val)
@@ -81,29 +91,32 @@ export default function BookModal({ mode, book, onSave, onClose }) {
     clear()
   }
 
-  // --- Upload de imagen ---
   const handleFileUpload = (e) => {
     const file = e.target.files[0]
     if (!file) return
+    setCoverError('')
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setCoverError(`La imagen supera el límite de ${MAX_FILE_MB} MB`)
+      e.target.value = ''
+      return
+    }
     const reader = new FileReader()
     reader.onload = (ev) => {
       const img = new Image()
       img.onload = () => {
-        const MAX = 500
-        const ratio = Math.min(MAX / img.width, (MAX * 1.5) / img.height, 1)
+        const ratio = Math.min(COVER_MAX_PX / img.width, (COVER_MAX_PX * 1.5) / img.height, 1)
         const canvas = document.createElement('canvas')
         canvas.width = Math.round(img.width * ratio)
         canvas.height = Math.round(img.height * ratio)
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-        set('cover', canvas.toDataURL('image/jpeg', 0.82))
+        set('cover', canvas.toDataURL('image/jpeg', COVER_QUALITY))
       }
-      img.src = ev.target.result
+      img.src = ev.target!.result as string
     }
     reader.readAsDataURL(file)
     e.target.value = ''
   }
 
-  // --- Búsqueda por ISBN ---
   const handleIsbnSearch = async (e) => {
     e?.preventDefault()
     const q = isbn.trim()
@@ -125,7 +138,6 @@ export default function BookModal({ mode, book, onSave, onClose }) {
     }
   }
 
-  // --- Escaneo de ISBN ---
   const handleScan = async (code) => {
     setScannerOpen(false)
     setIsbn(code)
@@ -142,8 +154,8 @@ export default function BookModal({ mode, book, onSave, onClose }) {
     }
   }
 
-  const validate = () => {
-    const e = {}
+  const validate = (): Record<string, string> => {
+    const e: Record<string, string> = {}
     if (!form.title.trim()) e.title = 'El título es obligatorio'
     if (!form.author.trim()) e.author = 'El autor es obligatorio'
     return e
@@ -151,6 +163,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (isbnLoading) return
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     onSave(form)
@@ -161,19 +174,24 @@ export default function BookModal({ mode, book, onSave, onClose }) {
   return (
     <>
       <div className={styles.overlay} ref={overlayRef} onClick={e => e.target === overlayRef.current && onClose()}>
-        <div className={styles.modal}>
+        <div
+          className={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="book-modal-title"
+        >
           <div className={styles.modalHeader}>
-            <h2 className={styles.modalTitle}>
+            <h2 className={styles.modalTitle} id="book-modal-title">
               {mode === 'add' ? 'Agregar libro' : 'Editar libro'}
             </h2>
             <button className={styles.closeBtn} onClick={onClose} aria-label="Cerrar">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
                 <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               </svg>
             </button>
           </div>
 
-          <form className={styles.form} onSubmit={handleSubmit}>
+          <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <div className={styles.scroll}>
 
               {/* Título */}
@@ -190,6 +208,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       placeholder="Escribí el título para buscar..."
                       autoFocus
                       autoComplete="off"
+                      maxLength={200}
                     />
                     {loading && (
                       <span className={styles.searchSpinner} aria-hidden="true">
@@ -200,7 +219,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       </span>
                     )}
                     {hasSuggestions && (
-                      <ul className={styles.suggestions} ref={suggestionsRef} role="listbox">
+                      <ul className={styles.suggestions} ref={suggestionsRef} role="listbox" aria-label="Sugerencias de libros">
                         {loading && suggestions.length === 0 && (
                           <li className={styles.suggestionLoading}>Buscando en Open Library...</li>
                         )}
@@ -209,13 +228,18 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                             key={s.key}
                             className={styles.suggestionItem}
                             role="option"
+                            aria-selected="false"
                             onMouseDown={() => handleSelectSuggestion(s)}
                           >
                             <div className={styles.suggestionCover}>
-                              {s.cover
-                                ? <img src={s.cover} alt="" onError={e => e.target.style.display = 'none'} />
-                                : <span className={styles.suggestionNoCover}>📖</span>
-                              }
+                              {s.cover ? (
+                                <CoverImg src={s.cover} alt={`Portada de ${s.title}`} className={styles.suggestionCoverImg} />
+                              ) : (
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" opacity="0.4">
+                                  <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                                </svg>
+                              )}
                             </div>
                             <div className={styles.suggestionInfo}>
                               <span className={styles.suggestionTitle}>{s.title}</span>
@@ -233,7 +257,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       </ul>
                     )}
                   </div>
-                  {errors.title && <span className={styles.error}>{errors.title}</span>}
+                  {errors.title && <span className={styles.error} role="alert">{errors.title}</span>}
                 </div>
 
                 <div className={styles.row2}>
@@ -245,8 +269,9 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       value={form.author}
                       onChange={e => set('author', e.target.value)}
                       placeholder="Nombre del autor"
+                      maxLength={150}
                     />
-                    {errors.author && <span className={styles.error}>{errors.author}</span>}
+                    {errors.author && <span className={styles.error} role="alert">{errors.author}</span>}
                   </div>
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="publisher">Editorial</label>
@@ -256,6 +281,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       value={form.publisher}
                       onChange={e => set('publisher', e.target.value)}
                       placeholder="Ej: Alfaguara"
+                      maxLength={150}
                     />
                   </div>
                 </div>
@@ -268,6 +294,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     value={form.genre || ''}
                     onChange={e => set('genre', e.target.value)}
                     placeholder="Ej: Fantasía, Terror, Ensayo..."
+                    maxLength={100}
                   />
                 </div>
               </div>
@@ -358,13 +385,12 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                 <span className={styles.label}>Tapa</span>
 
                 <div className={styles.coverSection}>
-                  {/* Preview */}
                   <div className={styles.coverPreviewBox}>
                     {form.cover ? (
                       <>
                         <img
                           src={form.cover}
-                          alt="Tapa"
+                          alt="Tapa del libro"
                           className={styles.coverImg}
                           onError={() => set('cover', '')}
                         />
@@ -374,14 +400,14 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                           onClick={() => set('cover', '')}
                           aria-label="Quitar tapa"
                         >
-                          <svg width="12" height="12" viewBox="0 0 18 18" fill="none">
+                          <svg width="12" height="12" viewBox="0 0 18 18" fill="none" aria-hidden="true">
                             <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                           </svg>
                         </button>
                       </>
                     ) : (
                       <div className={styles.coverVacio}>
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.3">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" opacity="0.3" aria-hidden="true">
                           <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                           <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
                         </svg>
@@ -389,14 +415,13 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     )}
                   </div>
 
-                  {/* Botones */}
                   <div className={styles.coverOpciones}>
                     <label className={styles.coverOpcionBtn}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                       <span>Subir foto</span>
-                      <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} hidden />
+                      <input ref={fileRef} type="file" accept="image/*" onChange={handleFileUpload} hidden aria-label="Subir foto de tapa" />
                     </label>
 
                     <button
@@ -404,7 +429,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                       className={styles.coverOpcionBtn}
                       onClick={() => setScannerOpen(true)}
                     >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                         <circle cx="12" cy="13" r="4" stroke="currentColor" strokeWidth="1.8"/>
                       </svg>
@@ -412,6 +437,8 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     </button>
                   </div>
                 </div>
+
+                {coverError && <span className={styles.error} role="alert">{coverError}</span>}
 
                 {/* ISBN manual */}
                 <div className={styles.isbnRow}>
@@ -424,6 +451,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     maxLength={17}
                     type="text"
                     inputMode="numeric"
+                    aria-label="ISBN"
                   />
                   <button
                     type="button"
@@ -432,19 +460,19 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     disabled={isbnLoading || !isbn.trim()}
                   >
                     {isbnLoading ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ animation: 'spin 0.8s linear infinite' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ animation: 'spin 0.8s linear infinite' }}>
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5"
                           strokeDasharray="31.4" strokeDashoffset="10"/>
                       </svg>
                     ) : 'Buscar'}
                   </button>
                 </div>
-                {isbnError && <span className={styles.error}>{isbnError}</span>}
+                {isbnError && <span className={styles.error} role="alert">{isbnError}</span>}
 
                 {/* Color */}
                 <div className={styles.field}>
                   <label className={styles.label}>Color de fondo</label>
-                  <div className={styles.colorPicker}>
+                  <div className={styles.colorPicker} role="group" aria-label="Seleccionar color de fondo">
                     {COLORS.map(c => (
                       <button
                         key={c}
@@ -453,6 +481,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                         style={{ backgroundColor: c }}
                         onClick={() => set('color', c)}
                         aria-label={`Color ${c}`}
+                        aria-pressed={form.color === c}
                       />
                     ))}
                   </div>
@@ -462,7 +491,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
 
             <div className={styles.footer}>
               <button type="button" className={styles.cancelBtn} onClick={onClose}>Cancelar</button>
-              <button type="submit" className={styles.saveBtn}>
+              <button type="submit" className={styles.saveBtn} disabled={isbnLoading}>
                 {mode === 'add' ? 'Agregar libro' : 'Guardar cambios'}
               </button>
             </div>

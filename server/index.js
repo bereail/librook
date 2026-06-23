@@ -1,0 +1,21 @@
+require('dotenv').config()
+const express = require('express')
+const cors = require('cors')
+
+const app = express()
+
+app.use(cors({
+  origin: ['https://ailonline.com.ar', 'http://localhost:5173'],
+  credentials: true,
+}))
+app.use(express.json({ limit: '10mb' }))
+
+app.use('/auth', require('./routes/auth'))
+app.use('/books', require('./routes/books'))
+
+app.get('/health', (_, res) => res.json({ ok: true }))
+
+const PORT = process.env.PORT || 3001
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Librook API corriendo en puerto ${PORT}`)
+})

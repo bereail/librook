@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import styles from './LoginPage.module.css'
 
-export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
+export default function LoginPage({ onLogin, onRegister, onForgotPassword }) {
   const [modo, setModo] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -26,28 +26,20 @@ export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
     setError('')
     setSuccess('')
 
-    if (esRegistro || esRecuperar) {
-      if (password.length < 6) {
-        setError('La contraseña debe tener al menos 6 caracteres')
-        return
-      }
-      if (password !== confirm) {
-        setError('Las contraseñas no coinciden')
-        return
-      }
+    if (esRegistro) {
+      if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return }
+      if (password !== confirm) { setError('Las contraseñas no coinciden'); return }
     }
 
     setLoading(true)
 
     if (esRecuperar) {
-      const result = await onResetPassword(email, password)
+      const result = await onForgotPassword(email)
       setLoading(false)
       if (!result.ok) {
-        setError(result.error)
+        setError(result.error || 'Error al enviar el email')
       } else {
-        setSuccess('Contraseña actualizada. Ya podés iniciar sesión.')
-        setPassword('')
-        setConfirm('')
+        setSuccess('Si el email está registrado, te enviamos un enlace para restablecer tu contraseña. Revisá tu casilla.')
       }
       return
     }
@@ -64,7 +56,7 @@ export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
     : 'Bienvenida'
 
   const subtitulo = esRegistro ? 'Registrate para empezar tu biblioteca'
-    : esRecuperar ? 'Ingresá tu email y una contraseña nueva'
+    : esRecuperar ? 'Ingresá tu email y te enviamos un enlace'
     : 'Iniciá sesión para ver tu biblioteca'
 
   return (
@@ -72,10 +64,10 @@ export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
       <div className={styles.left}>
         <div className={styles.decoration}>
           <div className={styles.bookStack}>
-            <div className={styles.book} style={{ '--c': '#2d4a3e', '--r': '-8deg', '--t': '0px' }} />
-            <div className={styles.book} style={{ '--c': '#c9a84c', '--r': '3deg', '--t': '-12px' }} />
-            <div className={styles.book} style={{ '--c': '#1a3a5c', '--r': '-2deg', '--t': '-24px' }} />
-            <div className={styles.book} style={{ '--c': '#4a2040', '--r': '6deg', '--t': '-36px' }} />
+            <div className={styles.book} style={{ '--c': '#2d4a3e', '--r': '-8deg', '--t': '0px' } as React.CSSProperties} />
+            <div className={styles.book} style={{ '--c': '#c9a84c', '--r': '3deg', '--t': '-12px' } as React.CSSProperties} />
+            <div className={styles.book} style={{ '--c': '#1a3a5c', '--r': '-2deg', '--t': '-24px' } as React.CSSProperties} />
+            <div className={styles.book} style={{ '--c': '#4a2040', '--r': '6deg', '--t': '-36px' } as React.CSSProperties} />
           </div>
         </div>
         <div className={styles.leftContent}>
@@ -123,39 +115,20 @@ export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
               </div>
             )}
 
-            {(esRegistro || esRecuperar) && (
-              <>
-                {esRecuperar && (
-                  <div className={styles.field}>
-                    <label className={styles.label} htmlFor="password">Contraseña nueva</label>
-                    <input
-                      id="password"
-                      className={styles.input}
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                      autoComplete="new-password"
-                    />
-                  </div>
-                )}
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="confirm">
-                    {esRecuperar ? 'Repetir contraseña nueva' : 'Repetir contraseña'}
-                  </label>
-                  <input
-                    id="confirm"
-                    className={styles.input}
-                    type="password"
-                    value={confirm}
-                    onChange={e => setConfirm(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    autoComplete="new-password"
-                  />
-                </div>
-              </>
+            {esRegistro && (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="confirm">Repetir contraseña</label>
+                <input
+                  id="confirm"
+                  className={styles.input}
+                  type="password"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
             )}
 
             {error && <p className={styles.error}>{error}</p>}
@@ -165,17 +138,13 @@ export default function LoginPage({ onLogin, onRegister, onResetPassword }) {
               <button className={styles.btn} type="submit" disabled={loading}>
                 {loading ? <span className={styles.spinner} />
                   : esRegistro ? 'Crear cuenta'
-                  : esRecuperar ? 'Cambiar contraseña'
+                  : esRecuperar ? 'Enviar enlace'
                   : 'Ingresar'}
               </button>
             )}
 
-            {success && (
-              <button
-                type="button"
-                className={styles.btn}
-                onClick={() => cambiarModo('login')}
-              >
+            {success && esRecuperar && (
+              <button type="button" className={styles.btn} onClick={() => cambiarModo('login')}>
                 Ir al inicio de sesión
               </button>
             )}

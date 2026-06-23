@@ -22,9 +22,9 @@ export default function BookCard({ book, onEdit, onDelete }) {
   const initials = book.title
     .split(' ')
     .slice(0, 2)
-    .map(w => w[0])
+    .map(w => w?.[0] || '')
     .join('')
-    .toUpperCase()
+    .toUpperCase() || '?'
 
   return (
     <div className={styles.wrapper} onClick={handleFlip}>

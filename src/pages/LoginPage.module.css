@@ -166,7 +166,7 @@
   font-size: 0.85rem;
   color: var(--color-error);
   padding: 0.6rem 0.8rem;
-  background: #fdecea;
+  background: var(--color-error-pale);
   border-radius: var(--radius-sm);
 }
 

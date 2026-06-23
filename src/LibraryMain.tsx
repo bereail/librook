@@ -2,14 +2,17 @@ import { useState, useCallback } from 'react'
 import { useBooks } from './hooks/useBooks'
 import { useGoal } from './hooks/useGoal'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { useToast } from './hooks/useToast'
 import LibraryPage from './pages/LibraryPage'
 import BookModal from './components/BookModal'
 import BookSearchModal from './components/BookSearchModal'
 import StatsModal from './components/StatsModal'
+import ToastContainer from './components/Toast'
 
 export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
   const { books, addBook, updateBook, deleteBook, exportBooks, importBooks } = useBooks(user.email)
   const { goal, updateCount: updateGoal } = useGoal()
+  const { toasts, addToast, removeToast } = useToast()
 
   const [modal, setModal] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -50,9 +53,17 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
     if (!file) return
     try {
       const count = await importBooks(file)
-      alert(`✓ Se importaron ${count} libros correctamente.`)
+      addToast(`Se importaron ${count} libros correctamente.`)
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      addToast(err.message, 'error')
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteBook(id)
+    } catch (err) {
+      addToast((err as Error).message, 'error')
     }
   }
 
@@ -67,7 +78,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
         onAddBook={openAdd}
         onSearchBooks={openSearch}
         onEditBook={(book) => setModal({ mode: 'edit', book })}
-        onDeleteBook={deleteBook}
+        onDeleteBook={handleDelete}
         onShowStats={openStats}
         onExport={exportBooks}
         onImport={handleImport}
@@ -76,10 +87,14 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
             <BookModal
               mode={modal.mode}
               book={modal.book}
-              onSave={(data) => {
-                if (modal.mode === 'add') addBook(data)
-                else updateBook(modal.book.id, data)
-                setModal(null)
+              onSave={async (data) => {
+                try {
+                  if (modal.mode === 'add') await addBook(data)
+                  else await updateBook(modal.book.id, data)
+                  setModal(null)
+                } catch (err) {
+                  addToast((err as Error).message, 'error')
+                }
               }}
               onClose={() => setModal(null)}
             />
@@ -102,6 +117,8 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
           onClose={() => setStatsOpen(false)}
         />
       )}
+
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   )
 }

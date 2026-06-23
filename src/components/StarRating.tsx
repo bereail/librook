@@ -1,8 +1,16 @@
+import React from 'react'
 import styles from './StarRating.module.css'
 
-export default function StarRating({ value, onChange, readonly = false, size = 20 }) {
+interface StarRatingProps {
+  value: number
+  onChange?: (n: number) => void
+  readonly?: boolean
+  size?: number
+}
+
+export default function StarRating({ value, onChange, readonly = false, size = 20 }: StarRatingProps) {
   return (
-    <div className={styles.stars} style={{ '--size': `${size}px` }}>
+    <div className={styles.stars} style={{ '--size': `${size}px` } as React.CSSProperties}>
       {[1, 2, 3, 4, 5].map(n => (
         <button
           key={n}

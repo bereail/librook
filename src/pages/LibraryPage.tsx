@@ -1,6 +1,8 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import BookCard from '../components/BookCard'
 import styles from './LibraryPage.module.css'
+
+const ITEMS_PER_PAGE = 48
 
 const STATUS_FILTERS = [
   { key: 'all', label: 'Todos' },
@@ -37,19 +39,88 @@ function GoalBar({ books, goal }) {
 
 function sortBooks(books, sort) {
   return [...books].sort((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
     switch (sort) {
       case 'score':
-        return (b.score || 0) - (a.score || 0) || Number(b.id) - Number(a.id)
+        return (b.score || 0) - (a.score || 0) || bTime - aTime
       case 'oldest':
-        return Number(a.id) - Number(b.id)
+        return aTime - bTime
       case 'az':
         return a.title.localeCompare(b.title, 'es', { sensitivity: 'base' })
       case 'za':
         return b.title.localeCompare(a.title, 'es', { sensitivity: 'base' })
-      default: // recent
-        return Number(b.id) - Number(a.id)
+      default:
+        return bTime - aTime
     }
   })
+}
+
+function Pagination({ currentPage, totalPages, onChange }) {
+  if (totalPages <= 1) return null
+
+  const pages = []
+  const delta = 1
+  const left = currentPage - delta
+  const right = currentPage + delta
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (i === 1 || i === totalPages || (i >= left && i <= right)) {
+      pages.push(i)
+    }
+  }
+
+  const withEllipsis = []
+  let prev = null
+  for (const page of pages) {
+    if (prev !== null && page - prev > 1) {
+      withEllipsis.push('...' + page)
+    }
+    withEllipsis.push(page)
+    prev = page
+  }
+
+  return (
+    <nav className={styles.pagination} aria-label="Paginación">
+      <button
+        className={styles.pageBtn}
+        onClick={() => onChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        aria-label="Página anterior"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {withEllipsis.map((item, i) =>
+        typeof item === 'string' ? (
+          <span key={item + i} className={styles.pageEllipsis}>…</span>
+        ) : (
+          <button
+            key={item}
+            className={`${styles.pageBtn} ${item === currentPage ? styles.pageBtnActive : ''}`}
+            onClick={() => onChange(item)}
+            aria-label={`Página ${item}`}
+            aria-current={item === currentPage ? 'page' : undefined}
+          >
+            {item}
+          </button>
+        )
+      )}
+
+      <button
+        className={styles.pageBtn}
+        onClick={() => onChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        aria-label="Página siguiente"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+    </nav>
+  )
 }
 
 export default function LibraryPage({
@@ -65,13 +136,14 @@ export default function LibraryPage({
   const [filterEditorial, setFilterEditorial] = useState('')
   const [filterAutor, setFilterAutor] = useState('')
   const [filterGenero, setFilterGenero] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   const editorials = useMemo(() =>
-    [...new Set(books.map(b => b.publisher).filter(Boolean))].sort(), [books])
+    [...new Set((books as any[]).map(b => b.publisher).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
   const autores = useMemo(() =>
-    [...new Set(books.map(b => b.author).filter(Boolean))].sort(), [books])
+    [...new Set((books as any[]).map(b => b.author).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
   const generos = useMemo(() =>
-    [...new Set(books.map(b => b.genre).filter(Boolean))].sort(), [books])
+    [...new Set((books as any[]).map(b => b.genre).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
 
   const activeAdvCount = [filterEditorial, filterAutor, filterGenero].filter(Boolean).length
 
@@ -94,6 +166,17 @@ export default function LibraryPage({
     return sortBooks(base, sort)
   }, [books, search, status, sort, filterEditorial, filterAutor, filterGenero])
 
+  // Volver a página 1 cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, status, sort, filterEditorial, filterAutor, filterGenero])
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const paginated = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   const clearAdv = () => {
     setFilterEditorial('')
     setFilterAutor('')
@@ -106,15 +189,15 @@ export default function LibraryPage({
         <div className={styles.headerInner}>
           <h1 className={styles.logo}>Librook</h1>
           <nav className={styles.nav}>
-            <button className={styles.searchBtn} onClick={onSearchBooks} aria-label="Buscar en Open Library">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <button className={styles.searchBtn} onClick={onSearchBooks} aria-label="Buscar en Open Library" aria-keyshortcuts="b" title="Buscar en Open Library (tecla B)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
                 <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
               <span className={styles.btnText}>Buscar libros</span>
             </button>
-            <button className={styles.addBtn} onClick={onAddBook}>
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <button className={styles.addBtn} onClick={onAddBook} aria-keyshortcuts="n" title="Agregar libro (tecla N)">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
               <span className={styles.btnText}>Agregar</span>
@@ -126,34 +209,34 @@ export default function LibraryPage({
               title={dark ? 'Modo claro' : 'Modo oscuro'}
             >
               {dark ? (
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8"/>
                   <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
                 </svg>
               ) : (
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
             </button>
-            <button className={styles.iconBtn} onClick={onShowStats} title="Estadísticas" aria-label="Estadísticas">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <button className={styles.iconBtn} onClick={onShowStats} title="Estadísticas (tecla E)" aria-label="Estadísticas" aria-keyshortcuts="e">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <button className={styles.iconBtn} onClick={onExport} title="Exportar biblioteca" aria-label="Exportar">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <button className={styles.iconBtn} onClick={onExport} title="Exportar biblioteca" aria-label="Exportar biblioteca">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <label className={styles.iconBtn} title="Importar biblioteca" aria-label="Importar" style={{ cursor: 'pointer' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <label className={styles.iconBtn} title="Importar biblioteca" aria-label="Importar biblioteca" style={{ cursor: 'pointer' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <input ref={importRef} type="file" accept=".json" onChange={e => { onImport(e.target.files[0]); e.target.value = '' }} hidden />
             </label>
             <button className={styles.iconBtn} onClick={onLogout} title="Cerrar sesión" aria-label="Cerrar sesión">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
@@ -163,15 +246,13 @@ export default function LibraryPage({
 
       <main className={styles.main}>
 
-        {/* Meta anual */}
         {goal.count > 0 && (
           <GoalBar books={books} goal={goal} />
         )}
 
-        {/* Barra superior: búsqueda + orden */}
         <div className={styles.searchRow}>
           <div className={styles.searchWrap}>
-            <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.8"/>
               <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
@@ -181,6 +262,7 @@ export default function LibraryPage({
               placeholder="Buscar por título o autor..."
               value={search}
               onChange={e => setSearch(e.target.value)}
+              aria-label="Buscar en tu biblioteca"
             />
           </div>
           <select
@@ -195,7 +277,6 @@ export default function LibraryPage({
           </select>
         </div>
 
-        {/* Filtros de estado + avanzados */}
         <div className={styles.filtersRow}>
           <div className={styles.statusFilters}>
             {STATUS_FILTERS.map(f => (
@@ -203,6 +284,7 @@ export default function LibraryPage({
                 key={f.key}
                 className={`${styles.filterBtn} ${status === f.key ? styles.active : ''}`}
                 onClick={() => setStatus(f.key)}
+                aria-pressed={status === f.key}
               >
                 {f.label}
               </button>
@@ -214,7 +296,7 @@ export default function LibraryPage({
             onClick={() => setAdvOpen(o => !o)}
             aria-expanded={advOpen}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               <line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               <line x1="10" y1="18" x2="14" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -226,7 +308,6 @@ export default function LibraryPage({
           </button>
         </div>
 
-        {/* Panel filtros avanzados */}
         {advOpen && (
           <div className={styles.advPanel}>
             <div className={styles.advSelects}>
@@ -294,12 +375,17 @@ export default function LibraryPage({
         <div className={styles.stats}>
           <span className={styles.count}>
             {filtered.length} {filtered.length === 1 ? 'libro' : 'libros'}
+            {totalPages > 1 && (
+              <span className={styles.pageInfo}>
+                {' '}— página {currentPage} de {totalPages}
+              </span>
+            )}
           </span>
         </div>
 
         {filtered.length === 0 ? (
           <div className={styles.empty}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.2">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.2" aria-hidden="true">
               <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
             </svg>
@@ -311,16 +397,23 @@ export default function LibraryPage({
             )}
           </div>
         ) : (
-          <div className={styles.grid}>
-            {filtered.map(book => (
-              <BookCard
-                key={book.id}
-                book={book}
-                onEdit={() => onEditBook(book)}
-                onDelete={() => onDeleteBook(book.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className={styles.grid}>
+              {paginated.map(book => (
+                <BookCard
+                  key={book.id}
+                  book={book}
+                  onEdit={() => onEditBook(book)}
+                  onDelete={() => onDeleteBook(book.id)}
+                />
+              ))}
+            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onChange={setCurrentPage}
+            />
+          </>
         )}
       </main>
 
