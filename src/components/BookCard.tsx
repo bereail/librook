@@ -6,9 +6,13 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
   const [flipped, setFlipped] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
 
-  const handleFlip = (e) => {
+  const handleClick = (e) => {
     if (e.target.closest('[data-action]')) return
-    setFlipped(f => !f)
+    if (flipped) {
+      if (onView) onView()
+    } else {
+      setFlipped(true)
+    }
   }
 
   const isPending = !book.startDate && !book.endDate
@@ -27,7 +31,7 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
     .toUpperCase() || '?'
 
   return (
-    <div className={styles.wrapper} onClick={handleFlip}>
+    <div className={styles.wrapper} onClick={handleClick}>
       <div className={`${styles.inner} ${flipped ? styles.flipped : ''}`}>
 
         {/* FRENTE */}
@@ -35,7 +39,7 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
           <div
             className={styles.cover}
             style={{
-              backgroundImage: book.cover ? `url(${book.cover})` : null,
+              backgroundImage: book.cover ? `url(${book.cover})` : undefined,
               backgroundColor: book.color || 'var(--color-accent)',
             }}
           >
@@ -82,9 +86,22 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
         {/* REVERSO */}
         <div className={styles.back}>
           <div className={styles.backHeader} style={{ backgroundColor: book.color || 'var(--color-accent)' }}>
-            <p className={styles.backTitle}>{book.title}</p>
-            <p className={styles.backAuthor}>{book.author}</p>
+            <button
+              data-action="close"
+              className={styles.backClose}
+              onClick={(e) => { e.stopPropagation(); setFlipped(false) }}
+              aria-label="Volver"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M15 18l-6-6 6-6" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <div className={styles.backHeaderText}>
+              <p className={styles.backTitle}>{book.title}</p>
+              <p className={styles.backAuthor}>{book.author}</p>
+            </div>
           </div>
+
           <div className={styles.backBody}>
             {isPending && (
               <div className={styles.row}>
@@ -130,6 +147,7 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
                 <StarRating value={book.score} readonly size={13} />
               </div>
             )}
+
             {book.notes && (
               <div className={styles.notes}>
                 <span className={styles.rowLabel}>Notas</span>
@@ -137,10 +155,14 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
               </div>
             )}
 
+            <div className={styles.tapHint}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Tocá para ver completo
+            </div>
+
             <div className={styles.actions}>
-              <button data-action="edit" className={styles.actionBtn} onClick={onView || onEdit}>
-                Ver
-              </button>
               {confirmando ? (
                 <div data-action="confirm" className={styles.confirmRow}>
                   <span className={styles.confirmLabel}>¿Eliminar?</span>
