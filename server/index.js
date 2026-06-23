@@ -12,6 +12,7 @@ app.use(express.json({ limit: '10mb' }))
 
 app.use('/auth', require('./routes/auth'))
 app.use('/books', require('./routes/books'))
+app.use('/admin', require('./routes/admin'))
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

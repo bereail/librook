@@ -4,10 +4,14 @@ import { useTheme } from './hooks/useTheme'
 import LoginPage from './pages/LoginPage'
 import LibraryMain from './LibraryMain'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import AdminPage from './pages/AdminPage'
+
+const ADMIN_EMAIL = 'berenicesolohaga@gmail.com'
 
 export default function App() {
   const { user, login, register, forgotPassword, resetPassword, logout } = useAuth()
   const { dark, toggle: toggleTheme } = useTheme()
+  const [adminOpen, setAdminOpen] = useState(false)
 
   const [resetToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search)
@@ -27,12 +31,17 @@ export default function App() {
     return <LoginPage onLogin={login} onRegister={register} onForgotPassword={forgotPassword} />
   }
 
+  if (adminOpen && user.email === ADMIN_EMAIL) {
+    return <AdminPage onBack={() => setAdminOpen(false)} />
+  }
+
   return (
     <LibraryMain
       user={user}
       onLogout={logout}
       dark={dark}
       onToggleTheme={toggleTheme}
+      onOpenAdmin={user.email === ADMIN_EMAIL ? () => setAdminOpen(true) : undefined}
     />
   )
 }

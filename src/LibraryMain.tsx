@@ -9,7 +9,7 @@ import BookSearchModal from './components/BookSearchModal'
 import StatsModal from './components/StatsModal'
 import ToastContainer from './components/Toast'
 
-export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
+export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpenAdmin }) {
   const { books, addBook, updateBook, deleteBook, exportBooks, importBooks } = useBooks(user.email)
   const { goal, updateCount: updateGoal } = useGoal()
   const { toasts, addToast, removeToast } = useToast()
@@ -82,6 +82,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme }) {
         onShowStats={openStats}
         onExport={exportBooks}
         onImport={handleImport}
+        onOpenAdmin={onOpenAdmin}
         modal={
           modal && (
             <BookModal
