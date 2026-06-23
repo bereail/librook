@@ -2,7 +2,7 @@ import { useState } from 'react'
 import styles from './BookCard.module.css'
 import StarRating from './StarRating'
 
-export default function BookCard({ book, onEdit, onDelete }) {
+export default function BookCard({ book, onEdit, onView, onDelete }) {
   const [flipped, setFlipped] = useState(false)
   const [confirmando, setConfirmando] = useState(false)
 
@@ -138,8 +138,8 @@ export default function BookCard({ book, onEdit, onDelete }) {
             )}
 
             <div className={styles.actions}>
-              <button data-action="edit" className={styles.actionBtn} onClick={onEdit}>
-                Editar
+              <button data-action="edit" className={styles.actionBtn} onClick={onView || onEdit}>
+                Ver
               </button>
               {confirmando ? (
                 <div data-action="confirm" className={styles.confirmRow}>

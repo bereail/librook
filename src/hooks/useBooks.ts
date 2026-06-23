@@ -2,6 +2,25 @@ import { useState, useEffect } from 'react'
 import { api } from '../api'
 import type { Book } from '../types'
 
+const LEGACY_KEYS = ['librook_books', 'books']
+const MIGRATED_KEY = 'librook_migrated_v2'
+
+async function migrateLocalStorage() {
+  if (localStorage.getItem(MIGRATED_KEY)) return
+  for (const key of LEGACY_KEYS) {
+    try {
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw)
+      const books: Book[] = Array.isArray(parsed) ? parsed : (parsed?.books || [])
+      if (books.length === 0) continue
+      await Promise.all(books.map(b => api.post('/books', b).catch(() => {})))
+      break
+    } catch { continue }
+  }
+  localStorage.setItem(MIGRATED_KEY, '1')
+}
+
 export function useBooks(userEmail: string) {
   const [books, setBooks] = useState<Book[]>([])
   const [loading, setLoading] = useState(true)
@@ -10,7 +29,8 @@ export function useBooks(userEmail: string) {
     if (!userEmail) return
     let cancelled = false
     setLoading(true)
-    api.get('/books')
+    migrateLocalStorage()
+      .then(() => api.get('/books'))
       .then(data => { if (!cancelled) setBooks(data) })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })

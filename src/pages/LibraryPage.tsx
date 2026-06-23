@@ -125,7 +125,7 @@ function Pagination({ currentPage, totalPages, onChange }) {
 
 export default function LibraryPage({
   books, dark, goal, onToggleTheme, onLogout,
-  onAddBook, onSearchBooks, onEditBook, onDeleteBook,
+  onAddBook, onSearchBooks, onViewBook, onEditBook, onDeleteBook,
   onShowStats, onExport, onImport, onOpenAdmin, modal,
 }) {
   const importRef = useRef(null)
@@ -412,6 +412,7 @@ export default function LibraryPage({
                 <BookCard
                   key={book.id}
                   book={book}
+                  onView={() => onViewBook(book)}
                   onEdit={() => onEditBook(book)}
                   onDelete={() => onDeleteBook(book.id)}
                 />

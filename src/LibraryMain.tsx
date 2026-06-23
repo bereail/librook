@@ -5,6 +5,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useToast } from './hooks/useToast'
 import LibraryPage from './pages/LibraryPage'
 import BookModal from './components/BookModal'
+import BookDetailModal from './components/BookDetailModal'
 import BookSearchModal from './components/BookSearchModal'
 import StatsModal from './components/StatsModal'
 import ToastContainer from './components/Toast'
@@ -15,6 +16,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
   const { toasts, addToast, removeToast } = useToast()
 
   const [modal, setModal] = useState(null)
+  const [detailBook, setDetailBook] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
 
@@ -77,6 +79,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
         onLogout={onLogout}
         onAddBook={openAdd}
         onSearchBooks={openSearch}
+        onViewBook={(book) => setDetailBook(book)}
         onEditBook={(book) => setModal({ mode: 'edit', book })}
         onDeleteBook={handleDelete}
         onShowStats={openStats}
@@ -116,6 +119,18 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
           goal={goal}
           onUpdateGoal={updateGoal}
           onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {detailBook && (
+        <BookDetailModal
+          book={detailBook}
+          onEdit={() => { setModal({ mode: 'edit', book: detailBook }); setDetailBook(null) }}
+          onDelete={async () => {
+            try { await handleDelete(detailBook.id); setDetailBook(null) }
+            catch { /* toast already shown */ }
+          }}
+          onClose={() => setDetailBook(null)}
         />
       )}
 
