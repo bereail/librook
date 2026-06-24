@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Uso: bash deploy_analytics.sh <usuario_ssh>
+# Ejemplo: bash deploy_analytics.sh root
+# O si tenés clave: bash deploy_analytics.sh ubuntu
+
+USER=${1:-root}
+HOST="138.36.238.175"
+PORT="5440"
+REMOTE="/var/www/librook-api"
+SSH="ssh -p $PORT $USER@$HOST"
+SCP="scp -P $PORT"
+
+echo "==> Copiando archivos al VPS..."
+$SCP server/routes/analytics.js $USER@$HOST:$REMOTE/routes/analytics.js
+$SCP server/routes/admin.js      $USER@$HOST:$REMOTE/routes/admin.js
+$SCP server/index.js             $USER@$HOST:$REMOTE/index.js
+
+echo "==> Ejecutando migración SQL..."
+$SSH "psql \$DATABASE_URL -f $REMOTE/schema_analytics.sql 2>/dev/null || \
+  psql \$(cat $REMOTE/.env | grep DATABASE_URL | cut -d= -f2-) -c \"
+    CREATE TABLE IF NOT EXISTS page_views (
+      id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      session_id  TEXT        NOT NULL,
+      user_email  TEXT,
+      path        TEXT        NOT NULL,
+      referrer    TEXT,
+      device_type TEXT,
+      browser     TEXT,
+      os          TEXT,
+      ip_address  TEXT,
+      created_at  TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_pv_created ON page_views(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_pv_session ON page_views(session_id);
+  \""
+
+echo "==> Copiando schema SQL..."
+$SCP server/schema_analytics.sql $USER@$HOST:$REMOTE/schema_analytics.sql
+
+echo "==> Reiniciando servicio..."
+$SSH "sudo systemctl restart librook-api && sleep 1 && sudo systemctl status librook-api --no-pager | head -8"
+
+echo ""
+echo "✓ Deploy completado. Probá el panel admin."
