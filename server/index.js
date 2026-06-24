@@ -10,9 +10,11 @@ app.use(cors({
 }))
 app.use(express.json({ limit: '10mb' }))
 
-app.use('/auth', require('./routes/auth'))
-app.use('/books', require('./routes/books'))
-app.use('/admin', require('./routes/admin'))
+app.set('trust proxy', 1)
+app.use('/auth',      require('./routes/auth'))
+app.use('/books',     require('./routes/books'))
+app.use('/admin',     require('./routes/admin'))
+app.use('/analytics', require('./routes/analytics'))
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 
