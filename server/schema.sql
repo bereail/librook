@@ -35,5 +35,9 @@ CREATE TABLE IF NOT EXISTS books (
   total_pages INTEGER,
   current_page INTEGER,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  would_reread BOOLEAN DEFAULT FALSE
 );
+
+-- Migración: agregar would_reread a bases existentes
+ALTER TABLE books ADD COLUMN IF NOT EXISTS would_reread BOOLEAN DEFAULT FALSE;

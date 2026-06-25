@@ -21,6 +21,7 @@ function dbToBook(row) {
     totalPages: row.total_pages,
     currentPage: row.current_page,
     createdAt: row.created_at,
+    wouldReread: row.would_reread || false,
   }
 }
 
@@ -43,8 +44,8 @@ router.post('/', auth, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO books
         (user_id, title, author, cover, publisher, genre, isbn, pages, year, score, notes,
-         start_date, end_date, color, total_pages, current_page)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+         start_date, end_date, color, total_pages, current_page, would_reread)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
        RETURNING *`,
       [
         req.userId, b.title, b.author || null, b.cover || null,
@@ -57,6 +58,7 @@ router.post('/', auth, async (req, res) => {
         b.color || null,
         b.totalPages ? Number(b.totalPages) : null,
         b.currentPage ? Number(b.currentPage) : null,
+        b.wouldReread ? true : false,
       ]
     )
     res.json(dbToBook(result.rows[0]))
@@ -73,8 +75,8 @@ router.put('/:id', auth, async (req, res) => {
       `UPDATE books SET
         title=$1, author=$2, cover=$3, publisher=$4, genre=$5, isbn=$6,
         pages=$7, year=$8, score=$9, notes=$10, start_date=$11, end_date=$12,
-        color=$13, total_pages=$14, current_page=$15, updated_at=NOW()
-       WHERE id=$16 AND user_id=$17
+        color=$13, total_pages=$14, current_page=$15, would_reread=$16, updated_at=NOW()
+       WHERE id=$17 AND user_id=$18
        RETURNING *`,
       [
         b.title, b.author || null, b.cover || null,
@@ -87,6 +89,7 @@ router.put('/:id', auth, async (req, res) => {
         b.color || null,
         b.totalPages ? Number(b.totalPages) : null,
         b.currentPage ? Number(b.currentPage) : null,
+        b.wouldReread ? true : false,
         req.params.id, req.userId,
       ]
     )

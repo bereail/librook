@@ -48,6 +48,13 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
             )}
             <div className={styles.spine} style={{ backgroundColor: darken(book.color) }} />
 
+            {book.wouldReread && (
+              <div className={`${styles.badge} ${styles.badgeFav}`} title="Volvería a leer">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+            )}
             {isFinished && (
               <div className={styles.badge}>
                 <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
@@ -194,10 +201,13 @@ export default function BookCard({ book, onEdit, onView, onDelete }) {
   )
 }
 
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+
 function formatDate(str) {
   if (!str) return ''
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
+  const match = str.match(/^(\d{4})-(\d{2})/)
+  if (!match) return ''
+  return `${MESES[parseInt(match[2]) - 1]} ${match[1]}`
 }
 
 function darken(hex) {

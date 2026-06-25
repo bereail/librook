@@ -10,9 +10,10 @@ const MAX_FILE_MB = 5
 
 const EMPTY = {
   title: '', author: '', publisher: '', genre: '',
-  startDate: '', endDate: '', notes: '',
+  year: '', startDate: '', endDate: '', notes: '',
   score: 0, cover: '', color: '',
   totalPages: '', currentPage: '',
+  wouldReread: false,
 }
 
 const COLORS = [
@@ -73,6 +74,7 @@ export default function BookModal({ mode, book, onSave, onClose }) {
       title: result.title || f.title,
       author: result.author || f.author,
       publisher: result.publisher || f.publisher,
+      year: result.year || f.year,
       cover: result.coverLarge || result.cover || f.cover,
     }))
     setErrors({})
@@ -286,16 +288,37 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                   </div>
                 </div>
 
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="genre">Género</label>
-                  <input
-                    id="genre"
-                    className={styles.input}
-                    value={form.genre || ''}
-                    onChange={e => set('genre', e.target.value)}
-                    placeholder="Ej: Fantasía, Terror, Ensayo..."
-                    maxLength={100}
-                  />
+                <datalist id="generos-lista">
+                  {['Novela','Cuento','Ensayo','Crónica','Poesía','Thriller','Ciencia ficción','Fantasía','Terror','Romance','Histórico','Autobiografía','Biografía','No ficción','Humor','Infantil','Juvenil','Policial','Drama'].map(g => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
+                <div className={styles.row2}>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="genre">Género</label>
+                    <input
+                      id="genre"
+                      className={styles.input}
+                      list="generos-lista"
+                      value={form.genre || ''}
+                      onChange={e => set('genre', e.target.value)}
+                      placeholder="Ej: Fantasía, Terror..."
+                      maxLength={100}
+                    />
+                  </div>
+                  <div className={styles.field}>
+                    <label className={styles.label} htmlFor="year">Año de edición</label>
+                    <input
+                      id="year"
+                      className={styles.input}
+                      type="number"
+                      min="1000"
+                      max={new Date().getFullYear() + 5}
+                      value={form.year || ''}
+                      onChange={e => set('year', e.target.value)}
+                      placeholder={`Ej: ${new Date().getFullYear()}`}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -303,58 +326,84 @@ export default function BookModal({ mode, book, onSave, onClose }) {
 
               {/* Fechas */}
               <div className={styles.section}>
+                <div className={styles.field}>
+                  <span className={styles.label}>Estado</span>
+                  <div className={styles.statusPills}>
+                    {([
+                      { key: 'pending', label: 'Pendiente' },
+                      { key: 'reading', label: 'Leyendo' },
+                      { key: 'done',    label: 'Leído' },
+                    ] as { key: string; label: string }[]).map(({ key, label }) => {
+                      const current = !form.startDate && !form.endDate ? 'pending' : !form.endDate ? 'reading' : 'done'
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          className={[
+                            styles.statusPill,
+                            current === key ? styles.statusPillActive : '',
+                            key === 'pending' ? styles.statusPillPending : '',
+                            key === 'reading' ? styles.statusPillReading : '',
+                            key === 'done'    ? styles.statusPillDone    : '',
+                          ].filter(Boolean).join(' ')}
+                          onClick={() => {
+                            const today = new Date().toISOString().slice(0, 10)
+                            if (key === 'pending') setForm(f => ({ ...f, startDate: '', endDate: '' }))
+                            else if (key === 'reading') setForm(f => ({ ...f, startDate: f.startDate || today, endDate: '' }))
+                            else setForm(f => ({ ...f, startDate: f.startDate || today, endDate: f.endDate || today }))
+                          }}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
                 <div className={styles.row2}>
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="startDate">Inicio de lectura</label>
-                    <input
-                      id="startDate"
-                      className={styles.input}
-                      type="date"
-                      value={form.startDate}
-                      onChange={e => set('startDate', e.target.value)}
-                    />
+                    <div className={styles.dateRow}>
+                      <input
+                        id="startDate"
+                        className={styles.input}
+                        type="date"
+                        value={form.startDate}
+                        onChange={e => set('startDate', e.target.value)}
+                      />
+                      {!form.startDate && (
+                        <button
+                          type="button"
+                          className={styles.todayBtn}
+                          onClick={() => set('startDate', new Date().toISOString().slice(0, 10))}
+                        >
+                          Hoy
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="endDate">Fin de lectura</label>
-                    <input
-                      id="endDate"
-                      className={styles.input}
-                      type="date"
-                      value={form.endDate}
-                      onChange={e => set('endDate', e.target.value)}
-                      min={form.startDate || undefined}
-                    />
+                    <div className={styles.dateRow}>
+                      <input
+                        id="endDate"
+                        className={styles.input}
+                        type="date"
+                        value={form.endDate}
+                        onChange={e => set('endDate', e.target.value)}
+                        min={form.startDate || undefined}
+                      />
+                      {!form.endDate && (
+                        <button
+                          type="button"
+                          className={styles.todayBtn}
+                          onClick={() => set('endDate', new Date().toISOString().slice(0, 10))}
+                        >
+                          Hoy
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <div className={styles.row2}>
-                  <div className={styles.field}>
-                    <label className={styles.label} htmlFor="totalPages">Páginas totales</label>
-                    <input
-                      id="totalPages"
-                      className={styles.input}
-                      type="number"
-                      min="0"
-                      value={form.totalPages || ''}
-                      onChange={e => set('totalPages', e.target.value)}
-                      placeholder="Ej: 400"
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label className={styles.label} htmlFor="currentPage">Página actual</label>
-                    <input
-                      id="currentPage"
-                      className={styles.input}
-                      type="number"
-                      min="0"
-                      max={form.totalPages || undefined}
-                      value={form.currentPage || ''}
-                      onChange={e => set('currentPage', e.target.value)}
-                      placeholder="Ej: 150"
-                    />
-                  </div>
-                </div>
-
               </div>
 
               <div className={styles.divider} />
@@ -376,6 +425,21 @@ export default function BookModal({ mode, book, onSave, onClose }) {
                     rows={3}
                   />
                 </div>
+                {form.endDate && (
+                  <div className={styles.rereedRow}>
+                    <span className={styles.label}>¿Lo volvería a leer?</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={!!form.wouldReread}
+                      className={`${styles.toggle} ${form.wouldReread ? styles.toggleOn : ''}`}
+                      onClick={() => set('wouldReread', !form.wouldReread)}
+                      aria-label="¿Lo volvería a leer?"
+                    >
+                      <span className={styles.toggleThumb} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className={styles.divider} />

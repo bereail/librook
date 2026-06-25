@@ -16,6 +16,7 @@ export interface Book {
   totalPages?: number
   currentPage?: number
   createdAt?: string
+  wouldReread?: boolean
 }
 
 export interface Goal {

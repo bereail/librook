@@ -126,7 +126,7 @@ function Pagination({ currentPage, totalPages, onChange }) {
 export default function LibraryPage({
   books, dark, goal, onToggleTheme, onLogout,
   onAddBook, onSearchBooks, onViewBook, onEditBook, onDeleteBook,
-  onShowStats, onExport, onImport, onOpenAdmin, modal,
+  onShowStats, isAdmin, onExportHtml, onExport, onImport, onOpenAdmin, modal,
 }) {
   const importRef = useRef(null)
   const [search, setSearch] = useState('')
@@ -136,6 +136,7 @@ export default function LibraryPage({
   const [filterEditorial, setFilterEditorial] = useState('')
   const [filterAutor, setFilterAutor] = useState('')
   const [filterGenero, setFilterGenero] = useState('')
+  const [filterFav, setFilterFav] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
   const editorials = useMemo(() =>
@@ -161,15 +162,16 @@ export default function LibraryPage({
       const matchEditorial = !filterEditorial || b.publisher === filterEditorial
       const matchAutor = !filterAutor || b.author === filterAutor
       const matchGenero = !filterGenero || b.genre === filterGenero
-      return matchSearch && matchStatus && matchEditorial && matchAutor && matchGenero
+      const matchFav = !filterFav || !!(b as any).wouldReread
+      return matchSearch && matchStatus && matchEditorial && matchAutor && matchGenero && matchFav
     })
     return sortBooks(base, sort)
-  }, [books, search, status, sort, filterEditorial, filterAutor, filterGenero])
+  }, [books, search, status, sort, filterEditorial, filterAutor, filterGenero, filterFav])
 
   // Volver a página 1 cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1)
-  }, [search, status, sort, filterEditorial, filterAutor, filterGenero])
+  }, [search, status, sort, filterEditorial, filterAutor, filterGenero, filterFav])
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
   const paginated = filtered.slice(
@@ -181,6 +183,7 @@ export default function LibraryPage({
     setFilterEditorial('')
     setFilterAutor('')
     setFilterGenero('')
+    setFilterFav(false)
   }
 
   return (
@@ -224,17 +227,27 @@ export default function LibraryPage({
                 <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <button className={styles.iconBtn} onClick={onExport} title="Exportar biblioteca" aria-label="Exportar biblioteca">
+            <button className={styles.iconBtn} onClick={onExportHtml} title="Exportar biblioteca (HTML)" aria-label="Exportar biblioteca">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
-            <label className={styles.iconBtn} title="Importar biblioteca" aria-label="Importar biblioteca" style={{ cursor: 'pointer' }}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <input ref={importRef} type="file" accept=".json" onChange={e => { onImport(e.target.files[0]); e.target.value = '' }} hidden />
-            </label>
+            {isAdmin && onExport && (
+              <button className={styles.iconBtn} onClick={onExport} title="Exportar JSON (admin)" aria-label="Exportar JSON">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <text x="12" y="8" textAnchor="middle" fontSize="7" fill="currentColor" fontFamily="monospace">{'{}'}</text>
+                </svg>
+              </button>
+            )}
+            {isAdmin && onImport && (
+              <label className={styles.iconBtn} title="Importar JSON (admin)" aria-label="Importar JSON" style={{ cursor: 'pointer' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <input ref={importRef} type="file" accept=".json" onChange={e => { onImport(e.target.files[0]); e.target.value = '' }} hidden />
+              </label>
+            )}
             {onOpenAdmin && (
               <button className={styles.iconBtn} onClick={onOpenAdmin} title="Panel admin" aria-label="Panel admin">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -298,6 +311,14 @@ export default function LibraryPage({
                 {f.label}
               </button>
             ))}
+            <button
+              className={`${styles.filterBtn} ${styles.filterFavBtn} ${filterFav ? styles.active : ''}`}
+              onClick={() => setFilterFav(o => !o)}
+              aria-pressed={filterFav}
+              title="Mostrar solo los que volvería a leer"
+            >
+              ★ Volvería a leer
+            </button>
           </div>
 
           <button
@@ -393,18 +414,35 @@ export default function LibraryPage({
         </div>
 
         {filtered.length === 0 ? (
-          <div className={styles.empty}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.2" aria-hidden="true">
-              <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-            </svg>
-            <p>{search ? `Sin resultados para "${search}"` : 'No hay libros en esta categoría'}</p>
-            {(search || activeAdvCount > 0 || status !== 'all') && (
-              <button className={styles.clearSearch} onClick={() => { setSearch(''); clearAdv(); setStatus('all') }}>
-                Limpiar todos los filtros
+          books.length === 0 ? (
+            <div className={styles.emptyWelcome}>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" opacity="0.18" aria-hidden="true">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              <p className={styles.emptyWelcomeTitle}>Tu biblioteca está vacía</p>
+              <p className={styles.emptyWelcomeSub}>Buscá un libro para empezar a registrar tus lecturas</p>
+              <button className={styles.emptyWelcomeBtn} onClick={onSearchBooks}>
+                Buscar mi primer libro
               </button>
-            )}
-          </div>
+              <button className={styles.emptyWelcomeLink} onClick={onAddBook}>
+                O agregalo manualmente
+              </button>
+            </div>
+          ) : (
+            <div className={styles.empty}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.2" aria-hidden="true">
+                <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              <p>{search ? `Sin resultados para "${search}"` : 'No hay libros en esta categoría'}</p>
+              {(search || activeAdvCount > 0 || status !== 'all' || filterFav) && (
+                <button className={styles.clearSearch} onClick={() => { setSearch(''); clearAdv(); setStatus('all') }}>
+                  Limpiar todos los filtros
+                </button>
+              )}
+            </div>
+          )
         ) : (
           <>
             <div className={styles.grid}>
@@ -425,6 +463,16 @@ export default function LibraryPage({
             />
           </>
         )}
+
+        <button
+          className={styles.fab}
+          onClick={onAddBook}
+          aria-label="Agregar libro"
+        >
+          <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/>
+          </svg>
+        </button>
       </main>
 
       {modal}

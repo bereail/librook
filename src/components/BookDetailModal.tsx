@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react'
 import StarRating from './StarRating'
 import styles from './BookDetailModal.module.css'
 
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+
 function formatDate(str: string | undefined) {
   if (!str) return ''
-  const [y, m, d] = str.split('-')
-  return `${d}/${m}/${y}`
+  const match = str.match(/^(\d{4})-(\d{2})/)
+  if (!match) return ''
+  return `${MESES[parseInt(match[2]) - 1]} ${match[1]}`
 }
 
-export default function BookDetailModal({ book, onEdit, onDelete, onClose }) {
+export default function BookDetailModal({ book, onEdit, onDelete, onClose, onMarkRead }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => {
@@ -128,6 +131,12 @@ export default function BookDetailModal({ book, onEdit, onDelete, onClose }) {
                   <StarRating value={book.score} readonly size={15} />
                 </div>
               )}
+              {book.wouldReread && (
+                <div className={styles.metaRow}>
+                  <span className={styles.metaLabel}>Favorito</span>
+                  <span className={styles.metaValue} style={{ color: '#c8922a' }}>★ Volvería a leer</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -147,6 +156,17 @@ export default function BookDetailModal({ book, onEdit, onDelete, onClose }) {
             </div>
           )}
         </div>
+
+        {isReading && !confirmDelete && (
+          <div className={styles.markReadBanner}>
+            <button className={styles.markReadBtn} onClick={onMarkRead}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Terminé de leerlo hoy
+            </button>
+          </div>
+        )}
 
         <div className={styles.footer}>
           {confirmDelete ? (

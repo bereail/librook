@@ -11,7 +11,8 @@ import StatsModal from './components/StatsModal'
 import ToastContainer from './components/Toast'
 
 export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpenAdmin }) {
-  const { books, addBook, updateBook, deleteBook, exportBooks, importBooks } = useBooks(user.email)
+  const { books, addBook, updateBook, deleteBook, exportBooks, exportBooksHtml, importBooks } = useBooks(user.email)
+  const isAdmin = !!onOpenAdmin
   const { goal, updateCount: updateGoal } = useGoal()
   const { toasts, addToast, removeToast } = useToast()
 
@@ -38,6 +39,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
         title: bookData.title || '',
         author: bookData.author || '',
         publisher: bookData.publisher || '',
+        year: bookData.year || '',
         cover: bookData.coverLarge || bookData.cover || '',
         genre: '',
         startDate: '',
@@ -45,8 +47,6 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
         notes: '',
         score: 0,
         color: '',
-        totalPages: '',
-        currentPage: '',
       },
     })
   }
@@ -83,8 +83,10 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
         onEditBook={(book) => setModal({ mode: 'edit', book })}
         onDeleteBook={handleDelete}
         onShowStats={openStats}
-        onExport={exportBooks}
-        onImport={handleImport}
+        isAdmin={isAdmin}
+        onExportHtml={exportBooksHtml}
+        onExport={isAdmin ? exportBooks : undefined}
+        onImport={isAdmin ? handleImport : undefined}
         onOpenAdmin={onOpenAdmin}
         modal={
           modal && (
@@ -131,6 +133,16 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
             catch { /* toast already shown */ }
           }}
           onClose={() => setDetailBook(null)}
+          onMarkRead={async () => {
+            const today = new Date().toISOString().slice(0, 10)
+            try {
+              await updateBook(detailBook.id, { ...detailBook, endDate: today })
+              setDetailBook(prev => ({ ...prev, endDate: today }))
+              addToast('¡Libro marcado como leído!')
+            } catch (err) {
+              addToast((err as Error).message, 'error')
+            }
+          }}
         />
       )}
 

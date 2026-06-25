@@ -276,6 +276,35 @@
   word-break: break-word;
 }
 
+/* Banner "marcar como leído" */
+.markReadBanner {
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.markReadBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--color-accent);
+  color: white;
+  font-size: 0.88rem;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.markReadBtn:hover {
+  background: var(--color-accent-light);
+}
+
 /* Footer */
 .footer {
   display: flex;

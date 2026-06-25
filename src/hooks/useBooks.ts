@@ -64,6 +64,100 @@ export function useBooks(userEmail: string) {
     URL.revokeObjectURL(url)
   }
 
+  const exportBooksHtml = () => {
+    const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']
+    const fmtDate = (str?: string) => {
+      if (!str) return ''
+      const m = str.match(/^(\d{4})-(\d{2})/)
+      if (!m) return ''
+      return `${MESES[parseInt(m[2]) - 1]} ${m[1]}`
+    }
+    const stars = (n?: number) => n && n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : ''
+
+    const finished = [...books].filter(b => b.endDate).sort((a, b) => (b.endDate || '') > (a.endDate || '') ? 1 : -1)
+    const reading  = books.filter(b => b.startDate && !b.endDate)
+    const pending  = books.filter(b => !b.startDate && !b.endDate)
+
+    const row = (b: Book) => `<tr>
+      <td>${b.title}</td>
+      <td>${b.author || ''}</td>
+      <td>${b.genre || ''}</td>
+      <td>${b.year || ''}</td>
+      <td class="stars">${stars(b.score)}</td>
+      <td>${fmtDate(b.endDate || b.startDate)}</td>
+      <td class="fav">${b.wouldReread ? '★' : ''}</td>
+    </tr>`
+
+    const table = (rows: Book[], cols: string[]) => `<table>
+      <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map(row).join('')}</tbody>
+    </table>`
+
+    const finishedCols = ['Título','Autor/a','Género','Año','Puntaje','Terminado','Fav']
+    const readingCols  = ['Título','Autor/a','Género','Año','Puntaje','Desde','']
+    const pendingCols  = ['Título','Autor/a','Género','Año','','','']
+
+    const avgScore = finished.filter(b => b.score && b.score > 0)
+    const avg = avgScore.length ? (avgScore.reduce((s, b) => s + (b.score || 0), 0) / avgScore.length).toFixed(1) : '—'
+
+    const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi biblioteca — Librook</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,serif;color:#1a1a18;background:#faf9f6;padding:2rem 1rem}
+    .wrap{max-width:960px;margin:0 auto}
+    h1{font-size:2rem;color:#2d4a3e;margin-bottom:.2rem}
+    .sub{color:#888;font-style:italic;margin-bottom:2rem;font-size:.9rem}
+    .stats{display:flex;gap:1.5rem;flex-wrap:wrap;margin-bottom:2.5rem;padding:1rem 1.25rem;background:#fff;border:1px solid #e8e6e0;border-radius:8px}
+    .stat{display:flex;flex-direction:column;gap:.15rem}
+    .stat-n{font-size:1.6rem;font-weight:700;color:#2d4a3e;font-family:Georgia,serif}
+    .stat-l{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:#888}
+    h2{font-size:1rem;text-transform:uppercase;letter-spacing:.06em;color:#2d4a3e;border-bottom:2px solid #2d4a3e;padding-bottom:.4rem;margin:2.5rem 0 1rem}
+    .count{font-size:.8rem;color:#aaa;font-weight:400;margin-left:.4rem;text-transform:none;letter-spacing:0}
+    table{width:100%;border-collapse:collapse;font-size:.85rem}
+    th{text-align:left;padding:.5rem .75rem;background:#2d4a3e;color:#fff;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;font-family:Arial,sans-serif}
+    td{padding:.5rem .75rem;border-bottom:1px solid #ede}
+    tr:last-child td{border-bottom:none}
+    tr:hover td{background:#f5f3ee}
+    .stars{color:#c8922a;white-space:nowrap}
+    .fav{color:#c8922a;text-align:center}
+    footer{margin-top:3rem;font-size:.75rem;color:#bbb;text-align:center;font-family:Arial,sans-serif}
+    @media(max-width:600px){table{font-size:.78rem}td,th{padding:.4rem .5rem}.stats{gap:1rem}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Mi biblioteca</h1>
+  <p class="sub">Exportado el ${new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'})} · ${books.length} libros en total</p>
+  <div class="stats">
+    <div class="stat"><span class="stat-n">${books.length}</span><span class="stat-l">Total</span></div>
+    <div class="stat"><span class="stat-n">${finished.length}</span><span class="stat-l">Leídos</span></div>
+    <div class="stat"><span class="stat-n">${reading.length}</span><span class="stat-l">Leyendo</span></div>
+    <div class="stat"><span class="stat-n">${pending.length}</span><span class="stat-l">Pendientes</span></div>
+    <div class="stat"><span class="stat-n">${avg}</span><span class="stat-l">Puntaje prom.</span></div>
+    <div class="stat"><span class="stat-n">${finished.filter(b=>b.wouldReread).length}</span><span class="stat-l">Volvería a leer</span></div>
+  </div>
+  ${finished.length > 0 ? `<h2>Leídos<span class="count">${finished.length}</span></h2>${table(finished, finishedCols)}` : ''}
+  ${reading.length > 0 ? `<h2>Leyendo<span class="count">${reading.length}</span></h2>${table(reading, readingCols)}` : ''}
+  ${pending.length > 0 ? `<h2>Pendientes<span class="count">${pending.length}</span></h2>${table(pending, pendingCols)}` : ''}
+  <footer>Generado por Librook</footer>
+</div>
+</body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `librook-${new Date().toISOString().slice(0,10)}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const importBooks = (file: File): Promise<number> => new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = async (e) => {
@@ -85,5 +179,5 @@ export function useBooks(userEmail: string) {
     reader.readAsText(file)
   })
 
-  return { books, loading, addBook, updateBook, deleteBook, exportBooks, importBooks }
+  return { books, loading, addBook, updateBook, deleteBook, exportBooks, exportBooksHtml, importBooks }
 }

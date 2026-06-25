@@ -443,6 +443,123 @@
   transform: scale(1.1);
 }
 
+/* Fila de fecha con botón "Hoy" */
+.dateRow {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.dateRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.todayBtn {
+  padding: 0 0.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.todayBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-pale);
+}
+
+/* Pills de estado */
+.statusPills {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.statusPill {
+  flex: 1;
+  padding: 0.55rem 0.4rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  transition: all var(--transition);
+  cursor: pointer;
+  text-align: center;
+}
+
+.statusPill:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-pale);
+}
+
+.statusPillActive.statusPillPending {
+  background: var(--color-surface-2);
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.statusPillActive.statusPillReading {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #92400e;
+}
+
+.statusPillActive.statusPillDone {
+  background: var(--color-accent-pale);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Toggle "volvería a leer" */
+.rereedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.15rem 0;
+}
+
+.toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--color-border);
+  border: none;
+  position: relative;
+  cursor: pointer;
+  transition: background 220ms ease;
+  flex-shrink: 0;
+}
+
+.toggleOn {
+  background: var(--color-accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  pointer-events: none;
+}
+
+.toggleOn .toggleThumb {
+  transform: translateX(20px);
+}
+
 /* Footer */
 .footer {
   display: flex;
