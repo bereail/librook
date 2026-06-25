@@ -1,4 +1,5 @@
 const router = require('express').Router()
+const bcrypt = require('bcryptjs')
 const auth = require('../middleware/authMiddleware')
 const pool = require('../db')
 
@@ -97,6 +98,25 @@ router.get('/analytics', auth, adminOnly, async (req, res) => {
   } catch (err) {
     console.error('admin analytics error', err)
     res.status(500).json({ error: 'Error al obtener analíticas' })
+  }
+})
+
+router.put('/users/:id/password', auth, adminOnly, async (req, res) => {
+  const { password } = req.body
+  if (!password || password.length < 6)
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' })
+  try {
+    const hash = await bcrypt.hash(password, 12)
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING id',
+      [hash, req.params.id]
+    )
+    if (result.rows.length === 0)
+      return res.status(404).json({ error: 'Usuario no encontrado' })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('admin reset password error', err)
+    res.status(500).json({ error: 'Error al resetear la contraseña' })
   }
 })
 

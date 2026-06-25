@@ -374,10 +374,15 @@
   box-shadow: var(--shadow-sm);
 }
 
-.userRow {
+.userCardHeader {
   display: flex;
   align-items: center;
-  width: 100%;
+}
+
+.userToggle {
+  display: flex;
+  align-items: center;
+  flex: 1;
   padding: 0.875rem 1.25rem;
   background: none;
   border: none;
@@ -386,17 +391,136 @@
   gap: 1rem;
   transition: background var(--transition);
   font-family: var(--font-sans);
+  min-width: 0;
 }
-.userRow:hover { background: var(--color-surface-2); }
+.userToggle:hover { background: var(--color-surface-2); }
 
-.userInfo { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; }
-.userEmail { font-size: 0.9rem; font-weight: 500; color: var(--color-text); }
+.userInfo { flex: 1; display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.userEmail { font-size: 0.9rem; font-weight: 500; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .userMeta  { font-size: 0.75rem; color: var(--color-text-muted); }
 
 .chevron { color: var(--color-text-muted); transition: transform 200ms ease; flex-shrink: 0; }
 .chevronOpen { transform: rotate(180deg); }
 
+.resetBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  margin-right: 1rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.resetBtn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-pale);
+}
+
 .bookList { border-top: 1px solid var(--color-border); padding: 0.75rem 1.25rem 1rem; }
+
+/* ── Modal reset contraseña ──────────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.75rem;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.2));
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modalTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.modalSub {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.modalField { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.modalLabel {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.modalInput {
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  transition: border-color var(--transition);
+  width: 100%;
+  box-sizing: border-box;
+}
+.modalInput:focus { outline: none; border-color: var(--color-accent); }
+.modalInput:disabled { opacity: 0.6; }
+
+.modalActions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+.modalCancel {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: var(--transition);
+}
+.modalCancel:hover { background: var(--color-surface-2); }
+
+.modalSave {
+  padding: 0.5rem 1.25rem;
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: var(--transition);
+}
+.modalSave:hover:not(:disabled) { opacity: 0.85; }
+.modalSave:disabled { opacity: 0.45; cursor: default; }
+
+.modalOk { color: #4ac9c0; font-size: 0.84rem; text-align: center; margin: 0; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {

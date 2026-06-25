@@ -3,23 +3,7 @@ import { api } from '../api'
 import type { Book } from '../types'
 
 const LEGACY_KEYS = ['librook_books', 'books']
-const MIGRATED_KEY = 'librook_migrated_v2'
-
-async function migrateLocalStorage() {
-  if (localStorage.getItem(MIGRATED_KEY)) return
-  for (const key of LEGACY_KEYS) {
-    try {
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      const parsed = JSON.parse(raw)
-      const books: Book[] = Array.isArray(parsed) ? parsed : (parsed?.books || [])
-      if (books.length === 0) continue
-      await Promise.all(books.map(b => api.post('/books', b).catch(() => {})))
-      break
-    } catch { continue }
-  }
-  localStorage.setItem(MIGRATED_KEY, '1')
-}
+const MIGRATED_KEY = 'librook_migrated_v3'
 
 export function useBooks(userEmail: string) {
   const [books, setBooks] = useState<Book[]>([])
@@ -29,11 +13,39 @@ export function useBooks(userEmail: string) {
     if (!userEmail) return
     let cancelled = false
     setLoading(true)
-    migrateLocalStorage()
-      .then(() => api.get('/books'))
-      .then(data => { if (!cancelled) setBooks(data) })
+
+    api.get('/books')
+      .then(async (serverBooks: Book[]) => {
+        // Si el servidor ya tiene libros, listo — no hay nada que migrar
+        if (serverBooks.length > 0) {
+          localStorage.setItem(MIGRATED_KEY, '1')
+          return serverBooks
+        }
+
+        // Servidor vacío y ya se intentó migrar antes → no duplicar
+        if (localStorage.getItem(MIGRATED_KEY)) return serverBooks
+
+        // Servidor vacío + primera vez → intentar migrar desde localStorage
+        for (const key of LEGACY_KEYS) {
+          try {
+            const raw = localStorage.getItem(key)
+            if (!raw) continue
+            const parsed = JSON.parse(raw)
+            const local: Book[] = Array.isArray(parsed) ? parsed : (parsed?.books ?? [])
+            if (local.length === 0) continue
+            await Promise.all(local.map(b => api.post('/books', b).catch(() => {})))
+            localStorage.setItem(MIGRATED_KEY, '1')
+            return api.get('/books')
+          } catch { continue }
+        }
+
+        localStorage.setItem(MIGRATED_KEY, '1')
+        return serverBooks
+      })
+      .then((data: Book[]) => { if (!cancelled) setBooks(data) })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false) })
+
     return () => { cancelled = true }
   }, [userEmail])
 

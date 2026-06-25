@@ -293,6 +293,12 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
   const [uErr, setUErr] = useState('')
   const [uLoad, setULoad] = useState(true)
 
+  const [resetTarget, setResetTarget] = useState<UserRow | null>(null)
+  const [resetPwd, setResetPwd] = useState('')
+  const [resetErr, setResetErr] = useState('')
+  const [resetLoad, setResetLoad] = useState(false)
+  const [resetOk, setResetOk] = useState(false)
+
   useEffect(() => {
     api.get('/admin/analytics')
       .then(setData)
@@ -315,6 +321,25 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
         const d = await api.get(`/admin/users/${id}/books`)
         setBooks(prev => ({ ...prev, [id]: d }))
       } catch { /* ignore */ }
+    }
+  }
+
+  const openReset = (u: UserRow) => {
+    setResetTarget(u); setResetPwd(''); setResetErr(''); setResetOk(false)
+  }
+
+  const closeReset = () => setResetTarget(null)
+
+  const submitReset = async () => {
+    if (resetPwd.length < 6) { setResetErr('Mínimo 6 caracteres'); return }
+    setResetLoad(true); setResetErr('')
+    try {
+      await api.put(`/admin/users/${resetTarget!.id}/password`, { password: resetPwd })
+      setResetOk(true); setResetPwd('')
+    } catch (e: unknown) {
+      setResetErr(e instanceof Error ? e.message : 'Error al resetear')
+    } finally {
+      setResetLoad(false)
     }
   }
 
@@ -449,21 +474,30 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
           )}
           {users.map(u => (
             <div key={u.id} className={styles.userCard}>
-              <button className={styles.userRow} onClick={() => toggleUser(u.id)}>
-                <div className={styles.userInfo}>
-                  <span className={styles.userEmail}>{u.email}</span>
-                  <span className={styles.userMeta}>
-                    Registrado el {new Date(u.created_at).toLocaleDateString('es-AR',
-                      { year: 'numeric', month: 'short', day: 'numeric' })}
-                    {' · '}{u.book_count} {u.book_count === 1 ? 'libro' : 'libros'}
-                  </span>
-                </div>
-                <svg className={`${styles.chevron} ${expanded === u.id ? styles.chevronOpen : ''}`}
-                  width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
+              <div className={styles.userCardHeader}>
+                <button className={styles.userToggle} onClick={() => toggleUser(u.id)}>
+                  <div className={styles.userInfo}>
+                    <span className={styles.userEmail}>{u.email}</span>
+                    <span className={styles.userMeta}>
+                      Registrado el {new Date(u.created_at).toLocaleDateString('es-AR',
+                        { year: 'numeric', month: 'short', day: 'numeric' })}
+                      {' · '}{u.book_count} {u.book_count === 1 ? 'libro' : 'libros'}
+                    </span>
+                  </div>
+                  <svg className={`${styles.chevron} ${expanded === u.id ? styles.chevronOpen : ''}`}
+                    width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+                <button className={styles.resetBtn} onClick={() => openReset(u)} title="Resetear contraseña">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  Resetear contraseña
+                </button>
+              </div>
               {expanded === u.id && (
                 <div className={styles.bookList}>
                   {!books[u.id]
@@ -492,6 +526,46 @@ export default function AdminPage({ onBack }: { onBack: () => void }) {
             </div>
           ))}
         </main>
+      )}
+
+      {/* ── MODAL RESET CONTRASEÑA ──────────────────────────────────────────── */}
+      {resetTarget && (
+        <div className={styles.modalOverlay} onClick={closeReset}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div>
+              <p className={styles.modalTitle}>Resetear contraseña</p>
+              <p className={styles.modalSub}>{resetTarget.email}</p>
+            </div>
+            <div className={styles.modalField}>
+              <label className={styles.modalLabel} htmlFor="reset-pwd">Nueva contraseña</label>
+              <input
+                id="reset-pwd"
+                type="password"
+                className={styles.modalInput}
+                value={resetPwd}
+                onChange={e => setResetPwd(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !resetLoad && submitReset()}
+                placeholder="Mínimo 6 caracteres"
+                autoFocus
+                disabled={resetLoad || resetOk}
+              />
+            </div>
+            {resetErr && <p className={styles.err} style={{ padding: 0 }}>{resetErr}</p>}
+            {resetOk  && <p className={styles.modalOk}>✓ Contraseña actualizada</p>}
+            <div className={styles.modalActions}>
+              <button className={styles.modalCancel} onClick={closeReset}>Cerrar</button>
+              {!resetOk && (
+                <button
+                  className={styles.modalSave}
+                  onClick={submitReset}
+                  disabled={resetLoad || resetPwd.length < 6}
+                >
+                  {resetLoad ? 'Guardando…' : 'Guardar'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
