@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
 import styles from './StatsModal.module.css'
+import type { Book, Goal } from '../types'
 
 const MS_PER_DAY = 86400000
 
-function CoverImg({ src, alt, className }) {
+function CoverImg({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [hasError, setHasError] = useState(false)
   if (hasError) return null
   return <img src={src} alt={alt} className={className} onError={() => setHasError(true)} />
 }
 
-function calcularStats(books) {
+function calcularStats(books: Book[]) {
   const currentYear = new Date().getFullYear()
   const leidos = books.filter(b => b.endDate)
   const leyendo = books.filter(b => b.startDate && !b.endDate)
@@ -68,7 +69,7 @@ function calcularStats(books) {
   }
 }
 
-function Stars({ value }) {
+function Stars({ value }: { value: number }) {
   return (
     <span className={styles.stars}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -106,13 +107,20 @@ function IconPages() {
   )
 }
 
-export default function StatsModal({ books, goal, onUpdateGoal, onClose }) {
+interface StatsModalProps {
+  books: Book[]
+  goal: Goal
+  onUpdateGoal: (n: number | string) => void
+  onClose: () => void
+}
+
+export default function StatsModal({ books, goal, onUpdateGoal, onClose }: StatsModalProps) {
   const s = useMemo(() => calcularStats(books), [books])
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState(String(goal?.count || 0))
   const currentYear = new Date().getFullYear()
 
-  const formatDays = (d) => d === 1 ? '1 día' : `${d} días`
+  const formatDays = (d: number) => d === 1 ? '1 día' : `${d} días`
 
   return (
     <div className={styles.overlay} onClick={e => e.target === e.currentTarget && onClose()}>

@@ -15,6 +15,7 @@ app.use('/auth',      require('./routes/auth'))
 app.use('/books',     require('./routes/books'))
 app.use('/admin',     require('./routes/admin'))
 app.use('/analytics', require('./routes/analytics'))
+app.use('/settings',  require('./routes/settings'))
 
 app.get('/health', (_, res) => res.json({ ok: true }))
 

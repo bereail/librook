@@ -41,3 +41,10 @@ CREATE TABLE IF NOT EXISTS books (
 
 -- Migración: agregar would_reread a bases existentes
 ALTER TABLE books ADD COLUMN IF NOT EXISTS would_reread BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id     UUID        PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  goal_count  INTEGER     DEFAULT 0,
+  goal_year   INTEGER     DEFAULT EXTRACT(YEAR FROM NOW())::int,
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);

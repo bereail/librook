@@ -9,15 +9,29 @@ import BookDetailModal from './components/BookDetailModal'
 import BookSearchModal from './components/BookSearchModal'
 import StatsModal from './components/StatsModal'
 import ToastContainer from './components/Toast'
+import type { Book } from './types'
 
-export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpenAdmin }) {
+interface Props {
+  user: { email: string }
+  onLogout: () => void
+  dark: boolean
+  onToggleTheme: () => void
+  onOpenAdmin?: () => void
+}
+
+interface ModalState {
+  mode: 'add' | 'edit'
+  book?: Partial<Book> & { id?: string }
+}
+
+export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpenAdmin }: Props) {
   const { books, addBook, updateBook, deleteBook, exportBooks, exportBooksHtml, importBooks } = useBooks(user.email)
   const isAdmin = !!onOpenAdmin
   const { goal, updateCount: updateGoal } = useGoal()
   const { toasts, addToast, removeToast } = useToast()
 
-  const [modal, setModal] = useState(null)
-  const [detailBook, setDetailBook] = useState(null)
+  const [modal, setModal] = useState<ModalState | null>(null)
+  const [detailBook, setDetailBook] = useState<Book | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [statsOpen, setStatsOpen] = useState(false)
 
@@ -31,7 +45,10 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
     { key: 'e', handler: openStats },
   ])
 
-  const handleAddFromSearch = (bookData) => {
+  const handleAddFromSearch = (bookData: {
+    title?: string; author?: string; publisher?: string
+    year?: number; coverLarge?: string; cover?: string
+  }) => {
     setSearchOpen(false)
     setModal({
       mode: 'add',
@@ -39,7 +56,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
         title: bookData.title || '',
         author: bookData.author || '',
         publisher: bookData.publisher || '',
-        year: bookData.year || '',
+        year: bookData.year,
         cover: bookData.coverLarge || bookData.cover || '',
         genre: '',
         startDate: '',
@@ -51,13 +68,13 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
     })
   }
 
-  const handleImport = async (file) => {
+  const handleImport = async (file: File) => {
     if (!file) return
     try {
       const count = await importBooks(file)
       addToast(`Se importaron ${count} libros correctamente.`)
     } catch (err) {
-      addToast(err.message, 'error')
+      addToast((err as Error).message, 'error')
     }
   }
 
@@ -96,7 +113,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
               onSave={async (data) => {
                 try {
                   if (modal.mode === 'add') await addBook(data)
-                  else await updateBook(modal.book.id, data)
+                  else if (modal.book?.id) await updateBook(modal.book.id, data)
                   setModal(null)
                 } catch (err) {
                   addToast((err as Error).message, 'error')
@@ -137,7 +154,7 @@ export default function LibraryMain({ user, onLogout, dark, onToggleTheme, onOpe
             const today = new Date().toISOString().slice(0, 10)
             try {
               await updateBook(detailBook.id, { ...detailBook, endDate: today })
-              setDetailBook(prev => ({ ...prev, endDate: today }))
+              setDetailBook(prev => prev ? { ...prev, endDate: today } : null)
               addToast('¡Libro marcado como leído!')
             } catch (err) {
               addToast((err as Error).message, 'error')

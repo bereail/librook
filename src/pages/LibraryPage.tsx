@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, ReactNode } from 'react'
 import BookCard from '../components/BookCard'
 import styles from './LibraryPage.module.css'
+import type { Book, Goal } from '../types'
 
 const ITEMS_PER_PAGE = 48
 
@@ -19,7 +20,7 @@ const SORT_OPTIONS = [
   { key: 'za', label: 'Z → A' },
 ]
 
-function GoalBar({ books, goal }) {
+function GoalBar({ books, goal }: { books: Book[]; goal: Goal }) {
   const currentYear = new Date().getFullYear()
   const done = books.filter(b => b.endDate && b.endDate.startsWith(String(currentYear))).length
   const pct = Math.min(100, Math.round((done / goal.count) * 100))
@@ -37,7 +38,7 @@ function GoalBar({ books, goal }) {
   )
 }
 
-function sortBooks(books, sort) {
+function sortBooks(books: Book[], sort: string): Book[] {
   return [...books].sort((a, b) => {
     const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0
     const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0
@@ -56,10 +57,12 @@ function sortBooks(books, sort) {
   })
 }
 
-function Pagination({ currentPage, totalPages, onChange }) {
+function Pagination({ currentPage, totalPages, onChange }: {
+  currentPage: number; totalPages: number; onChange: (p: number) => void
+}) {
   if (totalPages <= 1) return null
 
-  const pages = []
+  const pages: number[] = []
   const delta = 1
   const left = currentPage - delta
   const right = currentPage + delta
@@ -70,8 +73,8 @@ function Pagination({ currentPage, totalPages, onChange }) {
     }
   }
 
-  const withEllipsis = []
-  let prev = null
+  const withEllipsis: (number | string)[] = []
+  let prev: number | null = null
   for (const page of pages) {
     if (prev !== null && page - prev > 1) {
       withEllipsis.push('...' + page)
@@ -123,12 +126,32 @@ function Pagination({ currentPage, totalPages, onChange }) {
   )
 }
 
+interface LibraryPageProps {
+  books: Book[]
+  dark: boolean
+  goal: Goal
+  onToggleTheme: () => void
+  onLogout: () => void
+  onAddBook: () => void
+  onSearchBooks: () => void
+  onViewBook: (book: Book) => void
+  onEditBook: (book: Book) => void
+  onDeleteBook: (id: string) => void
+  onShowStats: () => void
+  isAdmin: boolean
+  onExportHtml: () => void
+  onExport?: () => void
+  onImport?: (file: File) => void
+  onOpenAdmin?: () => void
+  modal?: ReactNode
+}
+
 export default function LibraryPage({
   books, dark, goal, onToggleTheme, onLogout,
   onAddBook, onSearchBooks, onViewBook, onEditBook, onDeleteBook,
   onShowStats, isAdmin, onExportHtml, onExport, onImport, onOpenAdmin, modal,
-}) {
-  const importRef = useRef(null)
+}: LibraryPageProps) {
+  const importRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('recent')
@@ -140,11 +163,11 @@ export default function LibraryPage({
   const [currentPage, setCurrentPage] = useState(1)
 
   const editorials = useMemo(() =>
-    [...new Set((books as any[]).map(b => b.publisher).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
+    [...new Set(books.map(b => b.publisher).filter((v): v is string => Boolean(v)))].sort(), [books])
   const autores = useMemo(() =>
-    [...new Set((books as any[]).map(b => b.author).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
+    [...new Set(books.map(b => b.author).filter((v): v is string => Boolean(v)))].sort(), [books])
   const generos = useMemo(() =>
-    [...new Set((books as any[]).map(b => b.genre).filter((v: unknown): v is string => Boolean(v)))].sort(), [books])
+    [...new Set(books.map(b => b.genre).filter((v): v is string => Boolean(v)))].sort(), [books])
 
   const activeAdvCount = [filterEditorial, filterAutor, filterGenero].filter(Boolean).length
 
@@ -162,13 +185,12 @@ export default function LibraryPage({
       const matchEditorial = !filterEditorial || b.publisher === filterEditorial
       const matchAutor = !filterAutor || b.author === filterAutor
       const matchGenero = !filterGenero || b.genre === filterGenero
-      const matchFav = !filterFav || !!(b as any).wouldReread
+      const matchFav = !filterFav || !!b.wouldReread
       return matchSearch && matchStatus && matchEditorial && matchAutor && matchGenero && matchFav
     })
     return sortBooks(base, sort)
   }, [books, search, status, sort, filterEditorial, filterAutor, filterGenero, filterFav])
 
-  // Volver a página 1 cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1)
   }, [search, status, sort, filterEditorial, filterAutor, filterGenero, filterFav])
@@ -245,7 +267,7 @@ export default function LibraryPage({
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-                <input ref={importRef} type="file" accept=".json" onChange={e => { onImport(e.target.files[0]); e.target.value = '' }} hidden />
+                <input ref={importRef} type="file" accept=".json" onChange={e => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} hidden />
               </label>
             )}
             {onOpenAdmin && (

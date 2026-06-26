@@ -3,6 +3,13 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/tests/setup.ts'],
+    isolate: true,
+    include: ['src/tests/**/*.test.{ts,tsx}'],
+  },
   base: '/librook/',
   server: {
     proxy: {

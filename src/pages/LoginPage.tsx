@@ -1,8 +1,14 @@
 import React, { useState } from 'react'
 import styles from './LoginPage.module.css'
 
-export default function LoginPage({ onLogin, onRegister, onForgotPassword }) {
-  const [modo, setModo] = useState('login')
+interface Props {
+  onLogin: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  onRegister: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  onForgotPassword: (email: string) => Promise<{ ok: boolean; error?: string }>
+}
+
+export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Props) {
+  const [modo, setModo] = useState<'login' | 'registro' | 'recuperar'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -13,7 +19,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }) {
   const esRegistro = modo === 'registro'
   const esRecuperar = modo === 'recuperar'
 
-  const cambiarModo = (nuevoModo) => {
+  const cambiarModo = (nuevoModo: 'login' | 'registro' | 'recuperar') => {
     setModo(nuevoModo)
     setError('')
     setSuccess('')
@@ -21,7 +27,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }) {
     setConfirm('')
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -46,7 +52,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }) {
 
     const result = await (esRegistro ? onRegister(email, password) : onLogin(email, password))
     if (!result.ok) {
-      setError(result.error)
+      setError(result.error || 'Error al ingresar')
       setLoading(false)
     }
   }
