@@ -12,6 +12,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
@@ -25,6 +26,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
     setSuccess('')
     setPassword('')
     setConfirm('')
+    setShowPass(false)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,7 +60,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
   }
 
   const titulo = esRegistro ? 'Crear cuenta'
-    : esRecuperar ? 'Recuperar contraseña'
+    : esRecuperar ? 'Recuperar acceso'
     : 'Bienvenida'
 
   const subtitulo = esRegistro ? 'Registrate para empezar tu biblioteca'
@@ -67,7 +69,8 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
 
   return (
     <div className={styles.page}>
-      <div className={styles.left}>
+      {/* Left decorative panel — desktop only */}
+      <div className={styles.left} aria-hidden="true">
         <div className={styles.decoration}>
           <div className={styles.bookStack}>
             <div className={styles.book} style={{ '--c': '#2d4a3e', '--r': '-8deg', '--t': '0px' } as React.CSSProperties} />
@@ -82,9 +85,12 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
         </div>
       </div>
 
+      {/* Right form panel */}
       <div className={styles.right}>
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <div className={styles.formHeader}>
+            {/* Brand shown only on mobile (hidden on desktop since it's in .left) */}
+            <span className={styles.brandMobile}>Librook</span>
             <h2 className={styles.welcome}>{titulo}</h2>
             <p className={styles.subtitle}>{subtitulo}</p>
           </div>
@@ -102,22 +108,43 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
                 required
                 autoFocus
                 autoComplete="email"
+                inputMode="email"
               />
             </div>
 
             {!esRecuperar && (
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="password">Contraseña</label>
-                <input
-                  id="password"
-                  className={styles.input}
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  autoComplete={esRegistro ? 'new-password' : 'current-password'}
-                />
+                <div className={styles.passwordWrap}>
+                  <input
+                    id="password"
+                    className={styles.input}
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete={esRegistro ? 'new-password' : 'current-password'}
+                  />
+                  <button
+                    type="button"
+                    className={styles.showPassBtn}
+                    onClick={() => setShowPass(v => !v)}
+                    aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPass ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <line x1="1" y1="1" x2="23" y2="23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -127,7 +154,7 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
                 <input
                   id="confirm"
                   className={styles.input}
-                  type="password"
+                  type={showPass ? 'text' : 'password'}
                   value={confirm}
                   onChange={e => setConfirm(e.target.value)}
                   placeholder="••••••••"
@@ -137,12 +164,12 @@ export default function LoginPage({ onLogin, onRegister, onForgotPassword }: Pro
               </div>
             )}
 
-            {error && <p className={styles.error}>{error}</p>}
-            {success && <p className={styles.successMsg}>{success}</p>}
+            {error && <p className={styles.error} role="alert">{error}</p>}
+            {success && <p className={styles.successMsg} role="status">{success}</p>}
 
             {!success && (
               <button className={styles.btn} type="submit" disabled={loading}>
-                {loading ? <span className={styles.spinner} />
+                {loading ? <span className={styles.spinner} aria-hidden="true" />
                   : esRegistro ? 'Crear cuenta'
                   : esRecuperar ? 'Enviar enlace'
                   : 'Ingresar'}

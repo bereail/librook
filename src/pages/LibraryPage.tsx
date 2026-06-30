@@ -28,7 +28,7 @@ function GoalBar({ books, goal }: { books: Book[]; goal: Goal }) {
     <div className={styles.goalBar}>
       <div className={styles.goalInfo}>
         <span className={styles.goalLabel}>Meta {currentYear}</span>
-        <span className={styles.goalCount}>{done} de {goal.count} libros leídos</span>
+        <span className={styles.goalCount}>{done} de {goal.count} leídos</span>
       </div>
       <div className={styles.goalTrack}>
         <div className={styles.goalFill} style={{ width: `${pct}%` }} />
@@ -152,6 +152,8 @@ export default function LibraryPage({
   onShowStats, isAdmin, onExportHtml, onExport, onImport, onOpenAdmin, modal,
 }: LibraryPageProps) {
   const importRef = useRef<HTMLInputElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('all')
   const [sort, setSort] = useState('recent')
@@ -161,6 +163,18 @@ export default function LibraryPage({
   const [filterGenero, setFilterGenero] = useState('')
   const [filterFav, setFilterFav] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [menuOpen])
 
   const editorials = useMemo(() =>
     [...new Set(books.map(b => b.publisher).filter((v): v is string => Boolean(v)))].sort(), [books])
@@ -208,82 +222,256 @@ export default function LibraryPage({
     setFilterFav(false)
   }
 
+  const handleImportClick = () => {
+    importRef.current?.click()
+    setMenuOpen(false)
+  }
+
   return (
     <div className={styles.layout}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <h1 className={styles.logo}>Librook</h1>
+
           <nav className={styles.nav}>
-            <button className={styles.searchBtn} onClick={onSearchBooks} aria-label="Buscar en Open Library" aria-keyshortcuts="b" title="Buscar en Open Library (tecla B)">
+            {/* Primary actions — always visible */}
+            <button
+              className={styles.searchBtn}
+              onClick={onSearchBooks}
+              aria-label="Buscar en Open Library"
+              aria-keyshortcuts="b"
+              title="Buscar en Open Library (tecla B)"
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
                 <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
-              <span className={styles.btnText}>Buscar libros</span>
+              <span className={styles.btnText}>Buscar</span>
             </button>
-            <button className={styles.addBtn} onClick={onAddBook} aria-keyshortcuts="n" title="Agregar libro (tecla N)">
+
+            <button
+              className={styles.addBtn}
+              onClick={onAddBook}
+              aria-keyshortcuts="n"
+              title="Agregar libro (tecla N)"
+            >
               <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                 <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
               </svg>
               <span className={styles.btnText}>Agregar</span>
             </button>
-            <button
-              className={styles.iconBtn}
-              onClick={onToggleTheme}
-              aria-label={dark ? 'Modo claro' : 'Modo oscuro'}
-              title={dark ? 'Modo claro' : 'Modo oscuro'}
-            >
-              {dark ? (
+
+            {/* Secondary actions — visible on desktop only */}
+            <div className={styles.desktopActions}>
+              <button
+                className={styles.iconBtn}
+                onClick={onToggleTheme}
+                aria-label={dark ? 'Modo claro' : 'Modo oscuro'}
+                title={dark ? 'Modo claro' : 'Modo oscuro'}
+              >
+                {dark ? (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8"/>
+                    <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+
+              <button
+                className={styles.iconBtn}
+                onClick={onShowStats}
+                title="Estadísticas (tecla E)"
+                aria-label="Estadísticas"
+                aria-keyshortcuts="e"
+              >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8"/>
-                  <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                  <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              ) : (
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              )}
-            </button>
-            <button className={styles.iconBtn} onClick={onShowStats} title="Estadísticas (tecla E)" aria-label="Estadísticas" aria-keyshortcuts="e">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button className={styles.iconBtn} onClick={onExportHtml} title="Exportar biblioteca (HTML)" aria-label="Exportar biblioteca">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            {isAdmin && onExport && (
-              <button className={styles.iconBtn} onClick={onExport} title="Exportar JSON (admin)" aria-label="Exportar JSON">
+              </button>
+
+              <button
+                className={styles.iconBtn}
+                onClick={onExportHtml}
+                title="Exportar biblioteca (HTML)"
+                aria-label="Exportar biblioteca"
+              >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <text x="12" y="8" textAnchor="middle" fontSize="7" fill="currentColor" fontFamily="monospace">{'{}'}</text>
                 </svg>
               </button>
-            )}
-            {isAdmin && onImport && (
-              <label className={styles.iconBtn} title="Importar JSON (admin)" aria-label="Importar JSON" style={{ cursor: 'pointer' }}>
+
+              {isAdmin && onExport && (
+                <button
+                  className={styles.iconBtn}
+                  onClick={onExport}
+                  title="Exportar JSON (admin)"
+                  aria-label="Exportar JSON"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <text x="12" y="8" textAnchor="middle" fontSize="7" fill="currentColor" fontFamily="monospace">{'{}'}</text>
+                  </svg>
+                </button>
+              )}
+
+              {isAdmin && onImport && (
+                <button
+                  className={styles.iconBtn}
+                  onClick={() => importRef.current?.click()}
+                  title="Importar JSON (admin)"
+                  aria-label="Importar JSON"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+
+              {onOpenAdmin && (
+                <button
+                  className={styles.iconBtn}
+                  onClick={onOpenAdmin}
+                  title="Panel admin"
+                  aria-label="Panel admin"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+
+              <button
+                className={styles.iconBtn}
+                onClick={onLogout}
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <input ref={importRef} type="file" accept=".json" onChange={e => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }} hidden />
-              </label>
-            )}
-            {onOpenAdmin && (
-              <button className={styles.iconBtn} onClick={onOpenAdmin} title="Panel admin" aria-label="Panel admin">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
-            )}
-            <button className={styles.iconBtn} onClick={onLogout} title="Cerrar sesión" aria-label="Cerrar sesión">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            </div>
+
+            {/* More menu — visible on mobile only */}
+            <div className={styles.moreWrap} ref={menuRef}>
+              <button
+                className={`${styles.iconBtn} ${menuOpen ? styles.iconBtnOpen : ''}`}
+                onClick={() => setMenuOpen(o => !o)}
+                aria-label="Más opciones"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="5" r="1.5" fill="currentColor"/>
+                  <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+                  <circle cx="12" cy="19" r="1.5" fill="currentColor"/>
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div className={styles.menuDropdown} role="menu">
+                  <button
+                    className={styles.menuItem}
+                    onClick={() => { onToggleTheme(); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
+                    {dark ? (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="5" stroke="currentColor" strokeWidth="1.8"/>
+                        <path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                      </svg>
+                    ) : (
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                    <span>{dark ? 'Modo claro' : 'Modo oscuro'}</span>
+                  </button>
+
+                  <button
+                    className={styles.menuItem}
+                    onClick={() => { onShowStats(); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Estadísticas</span>
+                  </button>
+
+                  <button
+                    className={styles.menuItem}
+                    onClick={() => { onExportHtml(); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Exportar HTML</span>
+                  </button>
+
+                  {isAdmin && onExport && (
+                    <button
+                      className={styles.menuItem}
+                      onClick={() => { onExport!(); setMenuOpen(false) }}
+                      role="menuitem"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Exportar JSON</span>
+                    </button>
+                  )}
+
+                  {isAdmin && onImport && (
+                    <button
+                      className={styles.menuItem}
+                      onClick={handleImportClick}
+                      role="menuitem"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Importar JSON</span>
+                    </button>
+                  )}
+
+                  {onOpenAdmin && (
+                    <button
+                      className={styles.menuItem}
+                      onClick={() => { onOpenAdmin!(); setMenuOpen(false) }}
+                      role="menuitem"
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.8"/>
+                        <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span>Panel admin</span>
+                    </button>
+                  )}
+
+                  <div className={styles.menuDivider} aria-hidden="true" />
+
+                  <button
+                    className={`${styles.menuItem} ${styles.menuItemLogout}`}
+                    onClick={onLogout}
+                    role="menuitem"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </header>
@@ -308,6 +496,17 @@ export default function LibraryPage({
               onChange={e => setSearch(e.target.value)}
               aria-label="Buscar en tu biblioteca"
             />
+            {search && (
+              <button
+                className={styles.searchClear}
+                onClick={() => setSearch('')}
+                aria-label="Limpiar búsqueda"
+              >
+                <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path d="M2 2l14 14M16 2L2 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </button>
+            )}
           </div>
           <select
             className={styles.sortSelect}
@@ -339,7 +538,7 @@ export default function LibraryPage({
               aria-pressed={filterFav}
               title="Mostrar solo los que volvería a leer"
             >
-              ★ Volvería a leer
+              ★ Favoritos
             </button>
           </div>
 
@@ -429,7 +628,7 @@ export default function LibraryPage({
             {filtered.length} {filtered.length === 1 ? 'libro' : 'libros'}
             {totalPages > 1 && (
               <span className={styles.pageInfo}>
-                {' '}— página {currentPage} de {totalPages}
+                {' '}· pág. {currentPage}/{totalPages}
               </span>
             )}
           </span>
@@ -438,7 +637,7 @@ export default function LibraryPage({
         {filtered.length === 0 ? (
           books.length === 0 ? (
             <div className={styles.emptyWelcome}>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" opacity="0.18" aria-hidden="true">
+              <svg width="52" height="52" viewBox="0 0 24 24" fill="none" opacity="0.15" aria-hidden="true">
                 <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
               </svg>
@@ -453,7 +652,7 @@ export default function LibraryPage({
             </div>
           ) : (
             <div className={styles.empty}>
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" opacity="0.2" aria-hidden="true">
+              <svg width="44" height="44" viewBox="0 0 24 24" fill="none" opacity="0.18" aria-hidden="true">
                 <path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
               </svg>
@@ -498,6 +697,17 @@ export default function LibraryPage({
       </main>
 
       {modal}
+
+      {isAdmin && onImport && (
+        <input
+          ref={importRef}
+          type="file"
+          accept=".json"
+          onChange={e => { if (e.target.files?.[0]) onImport(e.target.files[0]); e.target.value = '' }}
+          hidden
+          aria-hidden="true"
+        />
+      )}
     </div>
   )
 }
